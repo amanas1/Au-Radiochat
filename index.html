@@ -1,0 +1,118 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#bc6ff1" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Au-Radiochat</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3659/3659784.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://de1.api.radio-browser.info">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            },
+            colors: {
+              primary: 'var(--color-primary, #bc6ff1)',
+              secondary: 'var(--color-secondary, #ff007c)',
+            },
+            animation: {
+              'marquee': 'marquee 40s linear infinite',
+              'marquee-slow': 'marquee 80s linear infinite',
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'float': 'float 6s ease-in-out infinite',
+              'spin-slow': 'spin 12s linear infinite',
+              'dance': 'dance 0.6s ease-in-out infinite alternate',
+              'head-bop': 'headBop 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate',
+              'shimmer': 'shimmer 2s linear infinite',
+              'glow-pulse': 'glowPulse 1.5s ease-in-out infinite',
+              'gradient-x': 'gradient-x 5s ease infinite',
+              'gradient-xy': 'gradient-xy 6s ease infinite',
+              'fade-in-out': 'fadeInOut 6s ease-in-out forwards',
+            },
+            keyframes: {
+              marquee: {
+                '0%': { transform: 'translateX(100%)' },
+                '100%': { transform: 'translateX(-100%)' },
+              },
+              shimmer: {
+                '0%': { backgroundPosition: '-200% 0' },
+                '100%': { backgroundPosition: '200% 0' },
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
+              },
+              dance: {
+                '0%': { transform: 'translateY(0) rotate(0deg)' },
+                '100%': { transform: 'translateY(-4px) rotate(2deg)' },
+              },
+              headBop: {
+                '0%': { transform: 'translateY(0)' },
+                '100%': { transform: 'translateY(3px)' },
+              },
+              glowPulse: {
+                '0%, 100%': { boxShadow: '0 0 15px var(--color-primary), 0 0 30px var(--color-primary)', opacity: 1 },
+                '50%': { boxShadow: '0 0 40px var(--color-primary), 0 0 70px var(--color-primary)', opacity: 0.9 }
+              },
+              'gradient-x': {
+                '0%, 100%': {
+                    'background-size': '200% 200%',
+                    'background-position': 'left center'
+                },
+                '50%': {
+                    'background-size': '200% 200%',
+                    'background-position': 'right center'
+                },
+              },
+              'gradient-xy': {
+                '0%, 100%': {
+                    'background-size': '400% 400%',
+                    'background-position': 'left center'
+                },
+                '50%': {
+                    'background-size': '200% 200%',
+                    'background-position': 'right center'
+                }
+              },
+              fadeInOut: {
+                '0%': { opacity: '0', transform: 'translateY(8px) scale(0.98)' },
+                '10%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                '90%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                '100%': { opacity: '0', transform: 'translateY(-8px) scale(1.02)' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "path": "https://esm.sh/path@^0.12.7"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

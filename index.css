@@ -1,0 +1,65 @@
+
+:root {
+  /* Deep Navy Dark Mode for premium feel */
+  --color-primary: #bc6ff1;
+  --color-secondary: #ff007c;
+  --base-bg: #070b14; /* Even darker for depth */
+  --text-base: #f8fafc;
+  --text-muted: #94a3b8;
+  --panel-bg: rgba(15, 23, 42, 0.92); /* Increased opacity */
+  --panel-border: rgba(255, 255, 255, 0.12); 
+  --card-bg: rgba(30, 41, 59, 0.7); 
+  --card-border: rgba(255, 255, 255, 0.08);
+  --input-bg: rgba(15, 23, 42, 0.6);
+  --input-border: rgba(255, 255, 255, 0.15);
+  --selected-item-bg: rgba(188, 111, 241, 0.15); 
+  --player-bar-bg: #0f172a; /* COMPLETELY SOLID in dark mode */
+  --shadow-color: rgba(0, 0, 0, 0.8);
+}
+
+body.light-mode {
+  --base-bg: #f1f5f9; 
+  --text-base: #020617;
+  --text-muted: #1e293b;
+  --panel-bg: rgba(255, 255, 255, 0.95);
+  --panel-border: rgba(2, 6, 23, 0.15);
+  --card-bg: #ffffff;
+  --card-border: rgba(2, 6, 23, 0.08);
+  --input-bg: #f8fafc;
+  --input-border: rgba(2, 6, 23, 0.2);
+  --selected-item-bg: rgba(2, 6, 23, 0.08);
+  --player-bar-bg: #ffffff; /* COMPLETELY SOLID in light mode */
+  --shadow-color: rgba(2, 6, 23, 0.15);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.4); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(128, 128, 128, 0.6); }
+
+body {
+  background-color: var(--base-bg);
+  color: var(--text-base);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.5s ease, color 0.5s ease;
+  overscroll-behavior: none;
+}
+
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(24px); /* Increased blur */
+  -webkit-backdrop-filter: blur(24px);
+  border: 1.5px solid var(--panel-border);
+  box-shadow: 0 10px 50px var(--shadow-color);
+  will-change: transform, opacity;
+}
+
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1.5px solid var(--card-border);
+  box-shadow: 0 4px 15px var(--shadow-color);
+  will-change: transform, opacity;
+}
