@@ -9,7 +9,7 @@ import {
   DEFAULT_VOLUME, TRANSLATIONS, GENRES, MOODS, ERAS, NEWS_MESSAGES 
 } from './constants';
 import { fetchStationsByTag } from './services/radioService';
-import { detectSpeechFromSpectrum, isAiAvailable, optimizeStationList } from './services/geminiService';
+
 import { 
   MusicNoteIcon, VolumeIcon, PreviousIcon, NextIcon, PlayIcon, PauseIcon, 
   LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, XMarkIcon, BellIcon, SparklesIcon, MaximizeIcon
