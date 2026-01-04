@@ -317,6 +317,42 @@ const App: React.FC = () => {
     setIsPlaying(!isPlaying);
   };
 
+  // --- BLUETOOTH / MEDIA SESSION API SUPPORT ---
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentStation) {
+      // 1. Update Metadata
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentStation.name,
+        artist: currentStation.tags || 'StreamFlow Radio',
+        artwork: [
+          { src: currentStation.favicon || 'https://cdn-icons-png.flaticon.com/512/3659/3659784.png', sizes: '96x96', type: 'image/png' },
+          { src: currentStation.favicon || 'https://cdn-icons-png.flaticon.com/512/3659/3659784.png', sizes: '128x128', type: 'image/png' },
+          { src: currentStation.favicon || 'https://cdn-icons-png.flaticon.com/512/3659/3659784.png', sizes: '192x192', type: 'image/png' },
+          { src: currentStation.favicon || 'https://cdn-icons-png.flaticon.com/512/3659/3659784.png', sizes: '512x512', type: 'image/png' },
+        ]
+      });
+
+      // 2. Set Action Handlers
+      navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
+      navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false));
+      navigator.mediaSession.setActionHandler('previoustrack', handlePreviousStation);
+      navigator.mediaSession.setActionHandler('nexttrack', handleNextStation);
+      
+      // Optional: Stop handler
+      navigator.mediaSession.setActionHandler('stop', () => {
+          setIsPlaying(false);
+          // If you have a way to fully stop/reset audio engine, do it here
+      });
+    }
+  }, [currentStation, handleNextStation, handlePreviousStation]);
+
+  // Sync Playback State with Media Session
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [isPlaying]);
+
   useEffect(() => {
       let interval: any;
       if (aiSpeechFilter && isPlaying && isAiAvailable() && analyserRef.current && currentStation) {
@@ -665,7 +701,7 @@ const App: React.FC = () => {
     '--panel-bg': baseTheme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)',
     '--panel-border': baseTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
     '--text-base': baseTheme === 'dark' ? '#fff' : '#0f172a',
-    '--player-bar-bg': baseTheme === 'dark' ? '#0f172a' : '#ffffff'
+    '--player-bar-bg': baseTheme === 'dark' ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255, 255, 255, 0.8)'
   } as React.CSSProperties;
 
   const dummyPassport: PassportData = {
@@ -941,7 +977,8 @@ const App: React.FC = () => {
                 aiSpeechFilter={aiSpeechFilter}
                 setAiSpeechFilter={setAiSpeechFilter}
                 onOpenChat={() => { setToolsOpen(false); setChatOpen(true); }}
-                // Removed setFullScreenStyle prop
+                fullScreenStyle={fullScreenStyle}
+                setFullScreenStyle={setFullScreenStyle}
                 onOptimizeStations={handleAiOptimization}
                 onRestartAudio={handleRestartAudio}
                 interfaceMode={interfaceMode}
