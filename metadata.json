@@ -1,0 +1,8 @@
+{
+  "name": "Au-Radiochat",
+  "description": "A pure global radio streaming application.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
