@@ -21,7 +21,6 @@ export default defineConfig({
         output: {
             manualChunks: {
                 vendor: ['react', 'react-dom'],
-                genai: ['@google/genai'],
                 icons: ['./components/Icons.tsx']
             }
         }

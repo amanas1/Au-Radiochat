@@ -9,7 +9,6 @@ import {
   DEFAULT_VOLUME, TRANSLATIONS, GENRES, MOODS, ERAS, NEWS_MESSAGES 
 } from './constants';
 import { fetchStationsByTag } from './services/radioService';
-import { detectSpeechFromSpectrum, isAiAvailable, optimizeStationList } from './services/geminiService';
 import { 
   MusicNoteIcon, VolumeIcon, PreviousIcon, NextIcon, PlayIcon, PauseIcon, 
   LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, BellIcon, SparklesIcon, MaximizeIcon, XMarkIcon
@@ -88,8 +87,6 @@ const App: React.FC = () => {
 
   const [showDevNews, setShowDevNews] = useState(false);
   const [customCardColor, setCustomCardColor] = useState<string | null>(null);
-  const [aiSpeechFilter, setAiSpeechFilter] = useState(false);
-  const [aiProcessing, setAiProcessing] = useState(false);
   
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
@@ -251,33 +248,6 @@ const App: React.FC = () => {
       }, 5000 + 1000);
       return () => clearInterval(interval);
   }, [showDevNews, language]);
-
-  useEffect(() => {
-      let interval: any;
-      if (aiSpeechFilter && isPlaying && isAiAvailable() && analyserRef.current && currentStation) {
-          interval = setInterval(async () => {
-              if (!analyserRef.current) return;
-              const tags = (currentStation.tags || '').toLowerCase();
-              if (tags.includes('hip hop') || tags.includes('hip-hop') || tags.includes('rap')) return;
-
-              const bufferLength = analyserRef.current.frequencyBinCount;
-              const dataArray = new Uint8Array(bufferLength);
-              analyserRef.current.getByteFrequencyData(dataArray);
-              const hasData = dataArray.some(val => val > 0);
-              
-              if (hasData && !retryWithoutCorsRef.current) { 
-                  setAiProcessing(true);
-                  const spectrum = Array.from(dataArray);
-                  const isSpeech = await detectSpeechFromSpectrum(spectrum);
-                  setAiProcessing(false);
-                  if (isSpeech) {
-                      handleNextStation();
-                  }
-              }
-          }, 10000); 
-      }
-      return () => clearInterval(interval);
-  }, [aiSpeechFilter, isPlaying, currentStation]);
 
   useEffect(() => {
       let timeout: number;
@@ -538,21 +508,6 @@ const App: React.FC = () => {
         console.error("Failed to change category", e);
         setIsBuffering(false);
     }
-  };
-
-  const handleAiOptimization = async () => {
-      setIsBuffering(true);
-      try {
-          const optimized = await optimizeStationList(stations);
-          setStations(optimized);
-          setCurrentStationIndex(0);
-          setStationVersion(v => v + 1);
-      } catch (e) {
-          console.error("Optimization failed", e);
-      } finally {
-          setIsBuffering(false);
-          setToolsOpen(false);
-      }
   };
 
   const handleRestartAudio = async () => {
@@ -857,12 +812,9 @@ const App: React.FC = () => {
                     setStreamQuality={setStreamQuality}
                     autoStart={autoStart}
                     setAutoStart={setAutoStart}
-                    aiSpeechFilter={aiSpeechFilter}
-                    setAiSpeechFilter={setAiSpeechFilter}
                     onOpenChat={() => { setToolsOpen(false); setChatOpen(true); }}
                     fullScreenStyle={fullScreenStyle}
                     setFullScreenStyle={setFullScreenStyle}
-                    onOptimizeStations={handleAiOptimization}
                     onRestartAudio={handleRestartAudio}
                 />
 

@@ -99,7 +99,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
   onOpenChat,
   initialTab = 'settings',
   fullScreenStyle, setFullScreenStyle,
-  aiSpeechFilter, setAiSpeechFilter, onOptimizeStations, onRestartAudio
+  onRestartAudio
 }) => {
   const [activeTab, setActiveTab] = useState<'viz' | 'eq' | 'look' | 'ambience' | 'fx' | 'timer' | 'settings'>('settings');
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
@@ -175,7 +175,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                  <button onClick={onClose}><XMarkIcon className="w-6 h-6 text-slate-400" /></button>
              </div>
 
-            {/* SETTINGS TAB (Combined with EQ/Ambience/Timer access) */}
+            {/* SETTINGS TAB */}
             {activeTab === 'settings' && (
                  <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                     
@@ -222,7 +222,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                         </button>
                     </div>
 
-                    {/* DEPLOY BUTTON (NEW) */}
+                    {/* DEPLOY BUTTON */}
                     {onOpenGithub && (
                         <button 
                             onClick={onOpenGithub}
