@@ -839,6 +839,7 @@ const App: React.FC = () => {
                     onStartTutorial={() => { setToolsOpen(false); setTutorialOpen(true); }}
                     onOpenManual={() => { setToolsOpen(false); setManualOpen(true); }}
                     onOpenProfile={() => { setToolsOpen(false); setUserProfile(null); }}
+                    onOpenGithub={() => { setToolsOpen(false); setGithubModalOpen(true); }}
                     showDeveloperNews={showDevNews}
                     setShowDeveloperNews={setShowDevNews}
                     ambience={ambience}

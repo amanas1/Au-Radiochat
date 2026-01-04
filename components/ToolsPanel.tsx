@@ -8,7 +8,7 @@ import { TRANSLATIONS } from '../constants';
 import { 
   XMarkIcon, AdjustmentsIcon, MoonIcon, PaletteIcon, 
   SwatchIcon, CloudIcon, MusicNoteIcon, ClockIcon, FireIcon, BellIcon,
-  LifeBuoyIcon, ChatBubbleIcon, MaximizeIcon, SparklesIcon, MicrophoneIcon
+  LifeBuoyIcon, ChatBubbleIcon, MaximizeIcon, SparklesIcon, MicrophoneIcon, GitHubIcon
 } from './Icons';
 
 interface ToolsPanelProps {
@@ -32,6 +32,7 @@ interface ToolsPanelProps {
   onStartTutorial: () => void;
   onOpenManual: () => void;
   onOpenProfile: () => void;
+  onOpenGithub?: () => void;
   showDeveloperNews: boolean;
   setShowDeveloperNews: (show: boolean) => void;
   ambience: AmbienceState;
@@ -88,7 +89,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
   currentTheme, setTheme, baseTheme, setBaseTheme,
   language, setLanguage,
   visualizerVariant, setVisualizerVariant, vizSettings, setVizSettings,
-  onStartTutorial, onOpenManual, onOpenProfile,
+  onStartTutorial, onOpenManual, onOpenProfile, onOpenGithub,
   showDeveloperNews, setShowDeveloperNews,
   ambience, setAmbience, passport, alarm, setAlarm, onThrowBottle, onCheckBottle,
   customCardColor, setCustomCardColor,
@@ -126,7 +127,6 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
       updateAlarm('days', newDays);
   };
 
-  // Modified Tabs List based on user request
   const tabs = [
     { id: 'chat_360', icon: ChatBubbleIcon, label: 'Chat 360', action: onOpenChat },
     { id: 'settings', icon: LifeBuoyIcon, label: language === 'ru' ? 'Настройки' : 'Settings' },
@@ -196,7 +196,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                                 <button 
                                     onClick={() => {
                                         setFullScreenStyle('visualizer');
-                                        onClose(); // Auto close panel when selecting visualizer only
+                                        onClose(); 
                                     }}
                                     className={`py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${fullScreenStyle === 'visualizer' ? 'bg-primary border-primary text-white shadow-lg' : 'bg-black/20 border-transparent text-slate-400 hover:bg-white/5'}`}
                                 >
@@ -206,7 +206,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                         </div>
                     )}
 
-                    {/* Audio Tools Access (Replaces Sidebar Tabs) */}
+                    {/* Audio Tools Access */}
                     <div className="grid grid-cols-3 gap-3">
                         <button onClick={() => setActiveTab('eq')} className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 flex flex-col items-center gap-2 transition-all">
                             <AdjustmentsIcon className="w-6 h-6 text-slate-300" />
@@ -222,7 +222,20 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                         </button>
                     </div>
 
-                    {/* Audio Engine Restart Button (NEW) */}
+                    {/* DEPLOY BUTTON (NEW) */}
+                    {onOpenGithub && (
+                        <button 
+                            onClick={onOpenGithub}
+                            className="w-full p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl flex items-center justify-center gap-3 transition-all group"
+                        >
+                            <GitHubIcon className="w-5 h-5 text-white" />
+                            <span className="text-xs font-bold text-slate-300 group-hover:text-white uppercase tracking-wider">
+                                {language === 'ru' ? 'Деплой / GitHub' : 'Deploy / GitHub'}
+                            </span>
+                        </button>
+                    )}
+
+                    {/* Audio Engine Restart */}
                     {onRestartAudio && (
                         <button 
                             onClick={() => { onRestartAudio(); onClose(); }}
@@ -269,8 +282,6 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${autoStart ? 'left-7' : 'left-1'}`}></div>
                              </button>
                         </div>
-
-                        {/* AI Section removed as per cleanup */}
 
                         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
                              <span className="font-bold text-sm text-slate-200">{t.developerNews}</span>
