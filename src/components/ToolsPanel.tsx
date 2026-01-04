@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ThemeName, BaseTheme, Language, VisualizerVariant, VisualizerSettings, 
-  AmbienceState, PassportData, AlarmConfig, FxSettings, StreamQuality 
+  AmbienceState, PassportData, AlarmConfig, FxSettings, StreamQuality, InterfaceMode
 } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { 
   XMarkIcon, AdjustmentsIcon, MoonIcon, PaletteIcon, 
   SwatchIcon, CloudIcon, MusicNoteIcon, ClockIcon, FireIcon, BellIcon,
-  LifeBuoyIcon, ChatBubbleIcon, MaximizeIcon, SparklesIcon, MicrophoneIcon
+  LifeBuoyIcon, ChatBubbleIcon, MaximizeIcon, SparklesIcon, MicrophoneIcon, ShuffleIcon
 } from './Icons';
 
 interface ToolsPanelProps {
@@ -57,6 +57,10 @@ interface ToolsPanelProps {
   setAiSpeechFilter?: (enabled: boolean) => void;
   onOptimizeStations?: () => void;
   onRestartAudio?: () => void;
+  isShuffleEnabled?: boolean;
+  setIsShuffleEnabled?: (enabled: boolean) => void;
+  interfaceMode?: InterfaceMode;
+  setInterfaceMode?: (mode: InterfaceMode) => void;
 }
 
 const VISUALIZERS: { id: VisualizerVariant; name: string }[] = [
@@ -81,6 +85,14 @@ const EQ_PRESETS = [
     { id: 'soft', name: 'Soft', ru: 'Мягко', values: [2, 1, 0, -1, -2, -1, 0, 1, 1, 2] },
 ];
 
+const INTERFACE_MODES: { id: InterfaceMode, name: string }[] = [
+    { id: 'standard', name: 'Standard' },
+    { id: 'minimal', name: 'Minimal' },
+    { id: 'classic', name: 'Classic' },
+    { id: 'focus', name: 'Focus' },
+    { id: 'party', name: 'Party' }
+];
+
 const ToolsPanel: React.FC<ToolsPanelProps> = ({
   isOpen, onClose,
   eqGains, setEqGain, onSetEqValues,
@@ -98,7 +110,9 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
   onOpenChat,
   initialTab = 'settings',
   fullScreenStyle, setFullScreenStyle,
-  aiSpeechFilter, setAiSpeechFilter, onOptimizeStations, onRestartAudio
+  aiSpeechFilter, setAiSpeechFilter, onOptimizeStations, onRestartAudio,
+  isShuffleEnabled, setIsShuffleEnabled,
+  interfaceMode, setInterfaceMode
 }) => {
   const [activeTab, setActiveTab] = useState<'viz' | 'eq' | 'look' | 'ambience' | 'fx' | 'timer' | 'settings'>('settings');
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
@@ -126,7 +140,6 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
       updateAlarm('days', newDays);
   };
 
-  // Modified Tabs List based on user request
   const tabs = [
     { id: 'chat_360', icon: ChatBubbleIcon, label: 'Chat 360', action: onOpenChat },
     { id: 'settings', icon: LifeBuoyIcon, label: language === 'ru' ? 'Настройки' : 'Settings' },
@@ -175,11 +188,11 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                  <button onClick={onClose}><XMarkIcon className="w-6 h-6 text-slate-400" /></button>
              </div>
 
-            {/* SETTINGS TAB (Combined with EQ/Ambience/Timer access) */}
+            {/* SETTINGS TAB */}
             {activeTab === 'settings' && (
                  <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                     
-                    {/* Full Screen Mode Toggle */}
+                    {/* Full Screen Mode */}
                     {setFullScreenStyle && (
                         <div className="p-5 bg-white/5 rounded-3xl border border-white/5">
                             <h4 className="text-xs font-black uppercase tracking-widest text-slate-300 mb-4 flex items-center gap-2">
@@ -196,7 +209,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                                 <button 
                                     onClick={() => {
                                         setFullScreenStyle('visualizer');
-                                        onClose(); // Auto close panel when selecting visualizer only
+                                        onClose();
                                     }}
                                     className={`py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${fullScreenStyle === 'visualizer' ? 'bg-primary border-primary text-white shadow-lg' : 'bg-black/20 border-transparent text-slate-400 hover:bg-white/5'}`}
                                 >
@@ -233,6 +246,24 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                                 {language === 'ru' ? 'Перезапуск Аудио (Нет Звука?)' : 'Restart Audio Engine (No Sound?)'}
                             </span>
                         </button>
+                    )}
+
+                    {/* Shuffle Toggle */}
+                    {setIsShuffleEnabled && (
+                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-white/10 rounded-2xl">
+                             <div className="flex items-center gap-3">
+                                 <div className="p-2 bg-white/10 rounded-lg">
+                                     <ShuffleIcon className="w-5 h-5 text-secondary" />
+                                 </div>
+                                 <div>
+                                     <span className="font-bold text-sm text-white block">{language === 'ru' ? 'Играть беспорядочно' : 'Play Randomly (Shuffle)'}</span>
+                                     <span className="text-[9px] text-slate-400 block">{language === 'ru' ? 'Микс жанров (без религии)' : 'Mix genres (excludes Religion)'}</span>
+                                 </div>
+                             </div>
+                             <button onClick={() => setIsShuffleEnabled(!isShuffleEnabled)} className={`w-12 h-6 rounded-full relative transition-colors ${isShuffleEnabled ? 'bg-secondary' : 'bg-slate-700'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isShuffleEnabled ? 'left-7' : 'left-1'}`}></div>
+                             </button>
+                        </div>
                     )}
 
                     {/* Quality Selector */}
@@ -342,6 +373,14 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.performanceMode}</label>
                             <button onClick={() => setVizSettings({...vizSettings, performanceMode: !vizSettings.performanceMode})} className={`w-12 h-6 rounded-full relative transition-colors ${vizSettings.performanceMode ? 'bg-green-500' : 'bg-slate-700'}`}>
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${vizSettings.performanceMode ? 'left-7' : 'left-1'}`}></div>
+                            </button>
+                        </div>
+                        
+                        {/* AUTO-IDLE TOGGLE (20s Fullscreen) */}
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{language === 'ru' ? 'Авто-Скрытие UI (20с)' : 'Auto-Hide UI (20s)'}</label>
+                            <button onClick={() => setVizSettings({...vizSettings, autoIdle: !vizSettings.autoIdle})} className={`w-12 h-6 rounded-full relative transition-colors ${vizSettings.autoIdle ? 'bg-green-500' : 'bg-slate-700'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${vizSettings.autoIdle ? 'left-7' : 'left-1'}`}></div>
                             </button>
                         </div>
                     </div>
@@ -523,6 +562,21 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                         <button onClick={() => setBaseTheme('light')} className={`p-4 rounded-2xl border flex items-center justify-center gap-2 ${baseTheme === 'light' ? 'bg-white border-slate-200 text-black' : 'bg-white/5 border-transparent text-slate-400'}`}>
                             <div className="w-5 h-5 rounded-full border-2 border-current"></div> <span>Light</span>
                         </button>
+                     </div>
+
+                     <div>
+                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{t.interfaceMode || "Interface Layout"}</h4>
+                         <div className="grid grid-cols-3 gap-2">
+                             {INTERFACE_MODES.map(mode => (
+                                 <button 
+                                    key={mode.id}
+                                    onClick={() => setInterfaceMode && setInterfaceMode(mode.id)}
+                                    className={`py-2 px-1 rounded-xl text-[10px] font-bold uppercase transition-all border ${interfaceMode === mode.id ? 'bg-primary border-primary text-white shadow-lg' : 'bg-white/5 border-transparent text-slate-400 hover:bg-white/10'}`}
+                                 >
+                                     {mode.name}
+                                 </button>
+                             ))}
+                         </div>
                      </div>
 
                      <div>

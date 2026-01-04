@@ -34,7 +34,7 @@ const CardVisualizer: React.FC<CardVisualizerProps> = ({ analyserNode, isPlaying
 
         const cx = w / 2;
         const cy = h / 2;
-        const radius = Math.min(w, h) * 0.35;
+        const maxRadius = Math.min(w, h) * 0.45;
 
         // Visual simulation data if no real audio
         let bufferLength = 64;
@@ -61,44 +61,59 @@ const CardVisualizer: React.FC<CardVisualizerProps> = ({ analyserNode, isPlaying
             }
         }
 
-        // Draw Circular Wave
+        // Draw Concentric Rings (Screenshot Style)
         if (isPlaying) {
-            ctx.beginPath();
-            for (let i = 0; i < bufferLength; i++) {
-                const value = dataArray[i] / 255.0;
-                const angle = (i / bufferLength) * Math.PI * 2;
-                // Double mirrored loop
-                const r = radius + (value * radius * 0.5);
-                const x = cx + Math.cos(angle) * r;
-                const y = cy + Math.sin(angle) * r;
-                
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-            ctx.closePath();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = color;
-            ctx.stroke();
-            
-            // Inner Fill
-            ctx.fillStyle = color + '33'; // 20% opacity
-            ctx.fill();
-            
-            // Central Pulse
-            const bass = dataArray[4] / 255.0;
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius * 0.5 * (1 + bass * 0.5), 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-        } else {
-            // Idle State - Pulsing Circle
+            const rings = 12;
             const time = Date.now() * 0.002;
-            const pulse = 1 + Math.sin(time) * 0.05;
+
+            for (let i = 0; i < rings; i++) {
+                // Map ring index to frequency data (low freqs in center, high outer)
+                const dataIndex = Math.floor((i / rings) * (bufferLength / 2));
+                const value = dataArray[dataIndex] / 255.0; // 0 to 1
+
+                // Dynamic Radius
+                const baseR = (i + 1) * (maxRadius / rings);
+                const r = baseR + (value * 20); // Expand on beat
+
+                // Dynamic Color
+                const hue = (i * 20 - time * 50) % 360;
+                const alpha = 0.3 + (value * 0.7);
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, Math.max(0, r), 0, Math.PI * 2);
+                
+                // Stroke
+                ctx.lineWidth = 2 + value * 3;
+                ctx.strokeStyle = `hsla(${hue}, 70%, 60%, ${alpha})`;
+                ctx.stroke();
+
+                // Subtle Fill for active rings
+                if (value > 0.3) {
+                    ctx.fillStyle = `hsla(${hue}, 70%, 60%, 0.1)`;
+                    ctx.fill();
+                }
+            }
+
+            // Central Core Pulse
+            const bass = dataArray[2] / 255.0;
             ctx.beginPath();
-            ctx.arc(cx, cy, radius * pulse, 0, Math.PI * 2);
-            ctx.strokeStyle = color + '80';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            ctx.arc(cx, cy, maxRadius * 0.15 * (1 + bass), 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.5;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+
+        } else {
+            // Idle State - Subtle Breathing Rings
+            const time = Date.now() * 0.002;
+            for(let i=0; i<3; i++) {
+                const r = (maxRadius * 0.3) + (i * 20) + Math.sin(time + i) * 5;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.strokeStyle = color + '40';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
         }
 
         animationRef.current = requestAnimationFrame(render);

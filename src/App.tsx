@@ -1,30 +1,35 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { 
   RadioStation, UserProfile, ThemeName, BaseTheme, Language, 
   VisualizerVariant, VisualizerSettings, AmbienceState, PassportData, 
-  AlarmConfig, FxSettings, StreamQuality, CategoryInfo
+  AlarmConfig, FxSettings, StreamQuality, CategoryInfo, InterfaceMode
 } from './types';
 import { 
   DEFAULT_VOLUME, TRANSLATIONS, GENRES, MOODS, ERAS, NEWS_MESSAGES 
 } from './constants';
-import { fetchStationsByTag } from './services/radioService';
+import { fetchStationsByTag, fetchRandomStations } from './services/radioService';
 import { detectSpeechFromSpectrum, isAiAvailable, optimizeStationList } from './services/geminiService';
 import { 
   MusicNoteIcon, VolumeIcon, PreviousIcon, NextIcon, PlayIcon, PauseIcon, 
-  LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, XMarkIcon, BellIcon, SparklesIcon, MaximizeIcon
+  LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, BellIcon, SparklesIcon, MaximizeIcon, XMarkIcon,
+  MinusIcon, PlusIcon
 } from './components/Icons';
 
 import AudioVisualizer from './components/AudioVisualizer';
-import ToolsPanel from './components/ToolsPanel';
-import ChatPanel from './components/ChatPanel';
-import MusicStorm from './components/MusicStorm';
-import ProfileSetup from './components/ProfileSetup';
-import TutorialOverlay from './components/TutorialOverlay';
-import ManualModal from './components/ManualModal';
-import DownloadAppModal from './components/DownloadAppModal';
-import FeedbackModal from './components/FeedbackModal';
-import GitHubModal from './components/GitHubModal';
+import DancingAvatar from './components/DancingAvatar';
+import CardVisualizer from './components/CardVisualizer';
+
+// Lazy load heavy components
+const ToolsPanel = React.lazy(() => import('./components/ToolsPanel'));
+const ChatPanel = React.lazy(() => import('./components/ChatPanel'));
+const MusicStorm = React.lazy(() => import('./components/MusicStorm'));
+const ProfileSetup = React.lazy(() => import('./components/ProfileSetup'));
+const TutorialOverlay = React.lazy(() => import('./components/TutorialOverlay'));
+const ManualModal = React.lazy(() => import('./components/ManualModal'));
+const DownloadAppModal = React.lazy(() => import('./components/DownloadAppModal'));
+const FeedbackModal = React.lazy(() => import('./components/FeedbackModal'));
+const GitHubModal = React.lazy(() => import('./components/GitHubModal'));
 
 const App: React.FC = () => {
   // --- Application State ---
@@ -49,6 +54,7 @@ const App: React.FC = () => {
   // --- UI State ---
   const [activeView, setActiveView] = useState<'player' | 'globe' | 'drum' | 'downloader' | 'browser'>('player');
   const [fullScreenStyle, setFullScreenStyle] = useState<'player' | 'visualizer'>('player');
+  const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>('standard');
   const [uiVisible, setUiVisible] = useState(true);
   
   // Modals & Panels
@@ -79,7 +85,11 @@ const App: React.FC = () => {
   const [eqGains, setEqGains] = useState<number[]>(new Array(10).fill(0));
   const [fxSettings, setFxSettings] = useState<FxSettings>({ reverb: 0, speed: 1.0 });
   const [streamQuality, setStreamQuality] = useState<StreamQuality>('standard');
+  const [idleModeEnabled, setIdleModeEnabled] = useState(false);
   
+  const [isShuffleEnabled, setIsShuffleEnabled] = useState(false); // New Shuffle State
+  const [currentCategory, setCurrentCategory] = useState<CategoryInfo | null>(null);
+
   const [autoStart, setAutoStart] = useState(() => {
       const saved = localStorage.getItem('streamflow_autostart');
       return saved !== null ? JSON.parse(saved) : true; 
@@ -111,8 +121,11 @@ const App: React.FC = () => {
   const retryWithoutCorsRef = useRef(false);
   const errorCountRef = useRef(0);
 
+  const categoryContainerRef = useRef<HTMLDivElement>(null);
+
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [isNewsVisible, setIsNewsVisible] = useState(true);
+  const [imgError, setImgError] = useState(false);
 
   const currentStation = stations[currentStationIndex];
   const t = TRANSLATIONS[language];
@@ -120,6 +133,11 @@ const App: React.FC = () => {
   useEffect(() => {
       localStorage.setItem('streamflow_autostart', JSON.stringify(autoStart));
   }, [autoStart]);
+
+  // Reset image error state when station changes
+  useEffect(() => {
+      setImgError(false);
+  }, [currentStationIndex, stations]);
 
   const playSafe = (audio: HTMLAudioElement) => {
       const p = audio.play();
@@ -236,7 +254,7 @@ const App: React.FC = () => {
       return () => {
           if (pannerIntervalRef.current) cancelAnimationFrame(pannerIntervalRef.current);
       };
-  }, [ambience.is8DEnabled, isPlaying]);
+  }, [ambience.is8DEnabled, ambience.spatialSpeed, isPlaying]);
 
   useEffect(() => {
       if (!showDevNews) return;
@@ -250,6 +268,54 @@ const App: React.FC = () => {
       }, 5000 + 1000);
       return () => clearInterval(interval);
   }, [showDevNews, language]);
+
+  const loadStations = async (tag = 'chill') => {
+      setStationsLoading(true);
+      try {
+        const loaded = await fetchStationsByTag(tag, 60, streamQuality);
+        if (loaded && loaded.length > 0) {
+            setStations(loaded);
+            if (autoStart) {
+                setIsPlaying(true);
+            }
+        } else {
+            setStations([]);
+        }
+      } catch (e) {
+        console.error("Failed to load stations", e);
+        setStations([]);
+      } finally {
+        setStationsLoading(false);
+      }
+  };
+
+  const handleNextStation = (e?: React.MouseEvent | any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (stations.length === 0) return;
+    setIsBuffering(true);
+    if (stations.length === 1) {
+        setStationVersion(v => v + 1);
+        return;
+    }
+    setCurrentStationIndex(prev => (prev + 1) % stations.length);
+  };
+
+  const handlePreviousStation = (e?: React.MouseEvent | any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (stations.length === 0) return;
+    setIsBuffering(true);
+    if (stations.length === 1) {
+        setStationVersion(v => v + 1);
+        return;
+    }
+    setCurrentStationIndex(prev => (prev - 1 + stations.length) % stations.length);
+  };
+
+  const togglePlay = (e?: React.MouseEvent | any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (stations.length === 0) return;
+    setIsPlaying(!isPlaying);
+  };
 
   useEffect(() => {
       let interval: any;
@@ -278,17 +344,20 @@ const App: React.FC = () => {
       return () => clearInterval(interval);
   }, [aiSpeechFilter, isPlaying, currentStation]);
 
+  // --- IDLE MODE LOGIC ---
   useEffect(() => {
       let timeout: number;
       const resetIdle = () => {
-          setUiVisible(true);
+          if (!uiVisible) setUiVisible(true);
           clearTimeout(timeout);
-          if (fullScreenStyle === 'visualizer' && !toolsOpen && !chatOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
+          // Auto-hide UI if autoIdle enabled OR visualizer mode selected
+          if ((vizSettings.autoIdle || fullScreenStyle === 'visualizer') && !toolsOpen && !chatOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
               timeout = window.setTimeout(() => {
                   setUiVisible(false);
-              }, 30000);
+              }, 20000); // 20 seconds
           }
       };
+      
       resetIdle();
       window.addEventListener('mousemove', resetIdle);
       window.addEventListener('mousedown', resetIdle);
@@ -301,7 +370,7 @@ const App: React.FC = () => {
           window.removeEventListener('touchstart', resetIdle);
           window.removeEventListener('keydown', resetIdle);
       };
-  }, [fullScreenStyle, toolsOpen, chatOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen]);
+  }, [vizSettings.autoIdle, fullScreenStyle, toolsOpen, chatOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen, uiVisible]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -312,26 +381,6 @@ const App: React.FC = () => {
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
-
-  const loadStations = async (tag = 'chill') => {
-      setStationsLoading(true);
-      try {
-        const loaded = await fetchStationsByTag(tag, 60, streamQuality);
-        if (loaded && loaded.length > 0) {
-            setStations(loaded);
-            if (autoStart) {
-                setIsPlaying(true);
-            }
-        } else {
-            setStations([]);
-        }
-      } catch (e) {
-        console.error("Failed to load stations", e);
-        setStations([]);
-      } finally {
-        setStationsLoading(false);
-      }
-  };
 
   useEffect(() => {
     loadStations();
@@ -486,34 +535,6 @@ const App: React.FC = () => {
       return () => clearInterval(interval);
   }, [sleepTimer]);
 
-  const handleNextStation = (e?: React.MouseEvent | any) => {
-    if (e && e.stopPropagation) e.stopPropagation();
-    if (stations.length === 0) return;
-    setIsBuffering(true);
-    if (stations.length === 1) {
-        setStationVersion(v => v + 1);
-        return;
-    }
-    setCurrentStationIndex(prev => (prev + 1) % stations.length);
-  };
-
-  const handlePreviousStation = (e?: React.MouseEvent | any) => {
-    if (e && e.stopPropagation) e.stopPropagation();
-    if (stations.length === 0) return;
-    setIsBuffering(true);
-    if (stations.length === 1) {
-        setStationVersion(v => v + 1);
-        return;
-    }
-    setCurrentStationIndex(prev => (prev - 1 + stations.length) % stations.length);
-  };
-
-  const togglePlay = (e?: React.MouseEvent | any) => {
-    if (e && e.stopPropagation) e.stopPropagation();
-    if (stations.length === 0) return;
-    setIsPlaying(!isPlaying);
-  };
-
   const handleProfileUpdate = (profile: UserProfile) => {
     setUserProfile(profile);
     localStorage.setItem('streamflow_user_profile', JSON.stringify(profile));
@@ -579,6 +600,48 @@ const App: React.FC = () => {
       }
   };
 
+  // --- CURSOR TRACKING FOR CATEGORY NAV (Sensitivity Fix) ---
+  useEffect(() => {
+      const container = categoryContainerRef.current;
+      if (!container) return;
+
+      const handleMove = (e: MouseEvent | TouchEvent) => {
+          const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+          const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+          const windowWidth = window.innerWidth;
+          
+          // Only trigger tracking if cursor is in the top 200px (closer to genres)
+          if (clientY > 200) return;
+
+          // Calculate percentage of screen width (0 to 1)
+          const percentage = Math.max(0, Math.min(1, clientX / windowWidth));
+          
+          const maxScroll = container.scrollWidth - container.clientWidth;
+          const targetScroll = maxScroll * percentage;
+          
+          // Smooth scroll
+          const currentScroll = container.scrollLeft;
+          const diff = targetScroll - currentScroll;
+          
+          if (Math.abs(diff) > 1) {
+              container.scrollLeft = currentScroll + diff * 0.1; // Lerp factor
+              requestAnimationFrame(() => handleMove(e));
+          }
+      };
+
+      const onInteraction = (e: MouseEvent | TouchEvent) => {
+          requestAnimationFrame(() => handleMove(e));
+      };
+
+      window.addEventListener('mousemove', onInteraction);
+      window.addEventListener('touchmove', onInteraction);
+
+      return () => {
+          window.removeEventListener('mousemove', onInteraction);
+          window.removeEventListener('touchmove', onInteraction);
+      };
+  }, []);
+
   if (!userProfile) {
     return (
       <ProfileSetup 
@@ -616,6 +679,11 @@ const App: React.FC = () => {
 
   const newsMessages = NEWS_MESSAGES[language] || NEWS_MESSAGES.en;
 
+  // Render logic based on Interface Mode
+  const isMinimal = interfaceMode === 'minimal' || interfaceMode === 'focus';
+  const isFocus = interfaceMode === 'focus';
+  const isParty = interfaceMode === 'party';
+
   return (
     <div className={`relative w-full h-[100dvh] overflow-hidden ${baseTheme} font-sans text-[var(--text-base)] select-none`} style={themeStyle}>
         
@@ -623,8 +691,8 @@ const App: React.FC = () => {
             <AudioVisualizer 
                 analyserNode={analyserRef.current} 
                 isPlaying={isPlaying} 
-                variant={vizVariant}
-                settings={vizSettings}
+                variant={isParty ? 'stage-dancer' : vizVariant}
+                settings={{...vizSettings, brightness: isParty ? 150 : vizSettings.brightness, speed: isParty ? 1.5 : vizSettings.speed}}
             />
         </div>
 
@@ -632,7 +700,7 @@ const App: React.FC = () => {
         
         <div className={`relative z-10 flex flex-col h-full transition-opacity duration-1000 ease-in-out ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             
-            {showDevNews && (
+            {showDevNews && !isFocus && (
                 <div className="absolute top-20 md:top-24 left-0 right-0 z-[120] h-12 flex items-center justify-center pointer-events-none px-4 text-center">
                     <div 
                         className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-base)] transition-opacity duration-1000 ${isNewsVisible ? 'opacity-100' : 'opacity-0'}`}
@@ -644,9 +712,13 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {activeView === 'player' && (
+            {activeView === 'player' && !isMinimal && (
                 <div className="w-full flex flex-col pt-6 pb-2 z-30 shrink-0 animate-in slide-in-from-top-4 duration-700 pointer-events-auto">
-                    <div className="w-full overflow-x-auto no-scrollbar" style={{ maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)' }}>
+                    <div 
+                        ref={categoryContainerRef}
+                        className="w-full overflow-x-hidden no-scrollbar cursor-none" 
+                        style={{ maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)' }}
+                    >
                         <div className="flex gap-3 px-6 w-max">
                              {[...MOODS, ...GENRES, ...ERAS].map(cat => (
                                  <button
@@ -672,7 +744,7 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            <div className="flex-1 pointer-events-auto flex flex-col">
+            <div className="flex-1 pointer-events-auto flex flex-col justify-center">
                 {activeView === 'player' && (
                     stationsLoading ? (
                         <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-in fade-in">
@@ -681,44 +753,57 @@ const App: React.FC = () => {
                              <p className="text-[var(--text-muted)] text-sm max-w-md">{language === 'ru' ? 'Подключаемся к глобальным серверам.' : 'Connecting to global radio servers.'}</p>
                         </div>
                     ) : stations.length > 0 && currentStation ? (
-                        <div className="flex-1 flex flex-col landscape:flex-row items-center justify-center gap-8 landscape:gap-16 w-full h-full p-4 animate-in fade-in duration-500">
+                        <div className={`flex flex-col ${isMinimal ? 'items-center gap-4' : 'landscape:flex-row items-center justify-center gap-8 landscape:gap-16'} w-full h-full p-4 animate-in fade-in duration-500`}>
+                            {/* Card Section */}
                             <div className="relative group perspective-1000 flex-shrink-0">
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-[2.5rem] blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-1000 animate-gradient-xy"></div>
+                                {!isMinimal && <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-[2.5rem] blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-1000 animate-gradient-xy"></div>}
                                 <div 
-                                    className="w-[70vw] h-[70vw] max-w-[320px] max-h-[320px] md:max-w-[400px] md:max-h-[400px] landscape:w-[45vh] landscape:h-[45vh] landscape:max-w-[320px] landscape:max-h-[320px] rounded-[2.5rem] relative z-10 overflow-hidden shadow-2xl border border-white/10 bg-black transform transition-transform duration-500 hover:scale-[1.02]"
+                                    className={`${isMinimal ? 'w-[200px] h-[200px] rounded-[2rem]' : 'w-[70vw] h-[70vw] max-w-[320px] max-h-[320px] md:max-w-[400px] md:max-h-[400px] landscape:w-[45vh] landscape:h-[45vh] landscape:max-w-[320px] landscape:max-h-[320px] rounded-[2.5rem]'} relative z-10 overflow-hidden shadow-2xl border border-white/10 bg-black transform transition-transform duration-500 hover:scale-[1.02]`}
                                     style={{ borderColor: customCardColor ? `rgb(${customCardColor})` : 'rgba(255,255,255,0.1)' }}
                                 >
                                     <div className="absolute inset-0 rounded-[2.5rem] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] z-20 pointer-events-none"></div>
-                                    {currentStation.favicon ? (
-                                        <img src={currentStation.favicon} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80'; }} />
+                                    {!imgError && currentStation.favicon ? (
+                                        <img 
+                                            src={currentStation.favicon} 
+                                            className="w-full h-full object-cover" 
+                                            onError={(e) => { 
+                                                setImgError(true);
+                                                (e.target as HTMLImageElement).style.display = 'none';
+                                            }} 
+                                        />
                                     ) : (
-                                        <MusicNoteIcon className="w-32 h-32 text-slate-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black w-full h-full">
+                                            <CardVisualizer analyserNode={analyserRef.current} isPlaying={isPlaying} color="var(--color-primary)" />
+                                        </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="flex flex-col w-full max-w-2xl landscape:max-w-md items-center landscape:items-start justify-center">
-                                <div className="text-center w-full px-8 relative z-10 mx-auto landscape:text-left landscape:px-0 landscape:mb-4">
-                                    <h2 className="text-2xl md:text-3xl font-black text-[var(--text-base)] mb-2 line-clamp-2 leading-tight drop-shadow-lg">{currentStation.name}</h2>
+                            {/* Controls Section */}
+                            <div className={`flex flex-col w-full ${isMinimal ? 'max-w-xs' : 'max-w-2xl landscape:max-w-md'} items-center ${!isMinimal && 'landscape:items-start'} justify-center`}>
+                                <div className={`text-center w-full px-8 relative z-10 mx-auto ${!isMinimal && 'landscape:text-left landscape:px-0 landscape:mb-4'}`}>
+                                    <h2 className={`${isMinimal ? 'text-xl' : 'text-2xl md:text-3xl'} font-black text-[var(--text-base)] mb-2 line-clamp-2 leading-tight drop-shadow-lg`}>{currentStation.name}</h2>
                                     <p className="text-xs md:text-sm text-[var(--text-muted)] font-bold uppercase tracking-widest opacity-70 truncate">
                                         {currentStation.tags || 'Global Radio'}
                                     </p>
                                 </div>
 
-                                <div className="w-full mt-2 bg-[var(--player-bar-bg)]/80 backdrop-blur-2xl border border-white/10 rounded-[3rem] px-6 py-4 md:px-8 md:py-5 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20">
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <button onClick={() => setVolume(v => v === 0 ? 0.5 : 0)} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors shrink-0">
-                                            <VolumeIcon className="w-5 h-5" />
-                                        </button>
-                                        <div className="h-1 bg-[var(--text-muted)]/20 rounded-full flex-1 max-w-[60px] md:max-w-[100px] relative group cursor-pointer">
-                                                <div className="absolute inset-0 bg-[var(--text-base)] origin-left rounded-full transition-all" style={{ width: `${volume * 100}%` }}></div>
-                                                <input 
-                                                    type="range" min="0" max="1" step="0.01" 
-                                                    value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                                />
+                                <div className={`w-full mt-2 bg-[var(--player-bar-bg)]/80 backdrop-blur-2xl border border-white/10 rounded-[3rem] px-6 py-4 md:px-8 md:py-5 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20`}>
+                                    {!isFocus && (
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <button onClick={() => setVolume(v => v === 0 ? 0.5 : 0)} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors shrink-0">
+                                                <VolumeIcon className="w-5 h-5" />
+                                            </button>
+                                            <div className="h-1 bg-[var(--text-muted)]/20 rounded-full flex-1 max-w-[60px] md:max-w-[100px] relative group cursor-pointer">
+                                                    <div className="absolute inset-0 bg-[var(--text-base)] origin-left rounded-full transition-all" style={{ width: `${volume * 100}%` }}></div>
+                                                    <input 
+                                                        type="range" min="0" max="1" step="0.01" 
+                                                        value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                    />
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     <div className="flex items-center gap-4 md:gap-6 justify-center flex-1 shrink-0">
                                         <button onClick={handlePreviousStation} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-all hover:scale-110 active:scale-95"><PreviousIcon className="w-6 h-6 md:w-8 md:h-8" /></button>
@@ -728,17 +813,19 @@ const App: React.FC = () => {
                                         <button onClick={handleNextStation} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-all hover:scale-110 active:scale-95"><NextIcon className="w-6 h-6 md:w-8 md:h-8" /></button>
                                     </div>
 
-                                    <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
-                                            <button onClick={() => setFullScreenStyle('visualizer')} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Visualizer Mode">
-                                                <SparklesIcon className="w-5 h-5" /> 
-                                            </button>
-                                            <button onClick={() => { setInitialToolsTab('eq'); setToolsOpen(true); }} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Equalizer">
-                                                <AdjustmentsIcon className="w-5 h-5" />
-                                            </button>
-                                            <button onClick={() => setContextMenuOpen(!contextMenuOpen)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full">
-                                                <MenuIcon className="w-5 h-5" />
-                                            </button>
-                                    </div>
+                                    {!isFocus && (
+                                        <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
+                                                <button onClick={() => setFullScreenStyle('visualizer')} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Visualizer Mode">
+                                                    <SparklesIcon className="w-5 h-5" /> 
+                                                </button>
+                                                <button onClick={() => { setInitialToolsTab('eq'); setToolsOpen(true); }} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Equalizer">
+                                                    <AdjustmentsIcon className="w-5 h-5" />
+                                                </button>
+                                                <button onClick={() => setContextMenuOpen(!contextMenuOpen)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full">
+                                                    <MenuIcon className="w-5 h-5" />
+                                                </button>
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 {sleepTimer && (
@@ -854,10 +941,13 @@ const App: React.FC = () => {
                 aiSpeechFilter={aiSpeechFilter}
                 setAiSpeechFilter={setAiSpeechFilter}
                 onOpenChat={() => { setToolsOpen(false); setChatOpen(true); }}
-                fullScreenStyle={fullScreenStyle}
-                setFullScreenStyle={setFullScreenStyle}
+                // Removed setFullScreenStyle prop
                 onOptimizeStations={handleAiOptimization}
                 onRestartAudio={handleRestartAudio}
+                interfaceMode={interfaceMode}
+                setInterfaceMode={setInterfaceMode}
+                isShuffleEnabled={isShuffleEnabled}
+                setIsShuffleEnabled={setIsShuffleEnabled}
             />
 
             <ChatPanel 

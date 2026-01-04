@@ -4,7 +4,7 @@ import {
   ThemeName, BaseTheme, Language, VisualizerVariant, VisualizerSettings, 
   AmbienceState, PassportData, AlarmConfig, FxSettings, StreamQuality, InterfaceMode
 } from '../types';
-import { TRANSLATIONS, EQ_PRESETS, INTERFACE_MODES } from '../constants';
+import { TRANSLATIONS } from '../constants';
 import { 
   XMarkIcon, AdjustmentsIcon, MoonIcon, PaletteIcon, 
   SwatchIcon, CloudIcon, MusicNoteIcon, ClockIcon, FireIcon, BellIcon,
@@ -18,7 +18,7 @@ interface ToolsPanelProps {
   setEqGain: (index: number, value: number) => void;
   onSetEqValues: (values: number[]) => void;
   sleepTimer: number | null;
-  setSleepTimer: (seconds: number | null) => void;
+  setSleepTimer: (minutes: number | null) => void;
   currentTheme: ThemeName;
   setTheme: (theme: ThemeName) => void;
   baseTheme: BaseTheme;
@@ -32,7 +32,6 @@ interface ToolsPanelProps {
   onStartTutorial: () => void;
   onOpenManual: () => void;
   onOpenProfile: () => void;
-  onOpenGithub?: () => void;
   showDeveloperNews: boolean;
   setShowDeveloperNews: (show: boolean) => void;
   ambience: AmbienceState;
@@ -52,8 +51,6 @@ interface ToolsPanelProps {
   setAutoStart: (b: boolean) => void;
   onOpenChat?: () => void;
   initialTab?: 'viz' | 'eq' | 'look' | 'ambience' | 'fx' | 'timer' | 'settings';
-  fullScreenStyle?: 'player' | 'visualizer';
-  setFullScreenStyle?: (style: 'player' | 'visualizer') => void;
   aiSpeechFilter?: boolean;
   setAiSpeechFilter?: (enabled: boolean) => void;
   onOptimizeStations?: () => void;
@@ -62,6 +59,8 @@ interface ToolsPanelProps {
   setIsShuffleEnabled?: (enabled: boolean) => void;
   interfaceMode?: InterfaceMode;
   setInterfaceMode?: (mode: InterfaceMode) => void;
+  fullScreenStyle?: 'player' | 'visualizer';
+  setFullScreenStyle?: (style: 'player' | 'visualizer') => void;
 }
 
 const VISUALIZERS: { id: VisualizerVariant; name: string }[] = [
@@ -75,6 +74,25 @@ const VISUALIZERS: { id: VisualizerVariant; name: string }[] = [
 
 const THEMES: ThemeName[] = ['default', 'emerald', 'midnight', 'cyber', 'volcano', 'ocean', 'sakura', 'gold', 'frost', 'forest'];
 
+const EQ_PRESETS = [
+    { id: 'flat', name: 'Flat', ru: 'Сброс', values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { id: 'bass', name: 'Bass', ru: 'Бас', values: [8, 7, 6, 3, 0, 0, 0, 0, 0, 0] },
+    { id: 'rock', name: 'Rock', ru: 'Рок', values: [5, 3, 2, 0, -1, -1, 1, 3, 4, 5] },
+    { id: 'pop', name: 'Pop', ru: 'Поп', values: [-1, 1, 3, 4, 4, 3, 1, 0, -1, -1] },
+    { id: 'jazz', name: 'Jazz', ru: 'Джаз', values: [3, 2, 0, 1, 0, 0, 0, 1, 2, 3] },
+    { id: 'vocal', name: 'Vocal', ru: 'Вокал', values: [-3, -3, -1, 1, 4, 5, 4, 2, 0, -1] },
+    { id: 'treble', name: 'Treble', ru: 'Высокие', values: [0, 0, 0, 0, 0, 2, 4, 6, 7, 8] },
+    { id: 'soft', name: 'Soft', ru: 'Мягко', values: [2, 1, 0, -1, -2, -1, 0, 1, 1, 2] },
+];
+
+const INTERFACE_MODES: { id: InterfaceMode, name: string }[] = [
+    { id: 'standard', name: 'Standard' },
+    { id: 'minimal', name: 'Minimal' },
+    { id: 'classic', name: 'Classic' },
+    { id: 'focus', name: 'Focus' },
+    { id: 'party', name: 'Party' }
+];
+
 const ToolsPanel: React.FC<ToolsPanelProps> = ({
   isOpen, onClose,
   eqGains, setEqGain, onSetEqValues,
@@ -82,7 +100,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
   currentTheme, setTheme, baseTheme, setBaseTheme,
   language, setLanguage,
   visualizerVariant, setVisualizerVariant, vizSettings, setVizSettings,
-  onStartTutorial, onOpenManual, onOpenProfile, onOpenGithub,
+  onStartTutorial, onOpenManual, onOpenProfile,
   showDeveloperNews, setShowDeveloperNews,
   ambience, setAmbience, passport, alarm, setAlarm, onThrowBottle, onCheckBottle,
   customCardColor, setCustomCardColor,
@@ -91,10 +109,10 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
   autoStart, setAutoStart,
   onOpenChat,
   initialTab = 'settings',
-  fullScreenStyle, setFullScreenStyle,
   aiSpeechFilter, setAiSpeechFilter, onOptimizeStations, onRestartAudio,
   isShuffleEnabled, setIsShuffleEnabled,
-  interfaceMode = 'standard', setInterfaceMode
+  interfaceMode = 'standard', setInterfaceMode,
+  fullScreenStyle, setFullScreenStyle
 }) => {
   const [activeTab, setActiveTab] = useState<'viz' | 'eq' | 'look' | 'ambience' | 'fx' | 'timer' | 'settings'>('settings');
   const t = TRANSLATIONS[language] || TRANSLATIONS.en;
@@ -103,7 +121,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
     if (isOpen) {
         setActiveTab(initialTab);
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab]); // Keep initialTab to reset when opening with specific tab
 
   if (!isOpen) return null;
 
@@ -122,7 +140,6 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
       updateAlarm('days', newDays);
   };
 
-  // Modified Tabs List based on user request
   const tabs = [
     { id: 'chat_360', icon: ChatBubbleIcon, label: 'Chat 360', action: onOpenChat },
     { id: 'settings', icon: LifeBuoyIcon, label: language === 'ru' ? 'Настройки' : 'Settings' },
@@ -171,11 +188,11 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                  <button onClick={onClose}><XMarkIcon className="w-6 h-6 text-slate-400" /></button>
              </div>
 
-            {/* SETTINGS TAB (Combined with EQ/Ambience/Timer access) */}
+            {/* SETTINGS TAB */}
             {activeTab === 'settings' && (
                  <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                     
-                    {/* Full Screen Mode Toggle */}
+                    {/* Full Screen Mode */}
                     {setFullScreenStyle && (
                         <div className="p-5 bg-white/5 rounded-3xl border border-white/5">
                             <h4 className="text-xs font-black uppercase tracking-widest text-slate-300 mb-4 flex items-center gap-2">
@@ -192,7 +209,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                                 <button 
                                     onClick={() => {
                                         setFullScreenStyle('visualizer');
-                                        onClose(); // Auto close panel when selecting visualizer only
+                                        onClose();
                                     }}
                                     className={`py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${fullScreenStyle === 'visualizer' ? 'bg-primary border-primary text-white shadow-lg' : 'bg-black/20 border-transparent text-slate-400 hover:bg-white/5'}`}
                                 >
@@ -345,6 +362,14 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${vizSettings.performanceMode ? 'left-7' : 'left-1'}`}></div>
                             </button>
                         </div>
+                        
+                        {/* AUTO-IDLE TOGGLE (20s Fullscreen) */}
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{language === 'ru' ? 'Авто-Скрытие UI (20с)' : 'Auto-Hide UI (20s)'}</label>
+                            <button onClick={() => setVizSettings({...vizSettings, autoIdle: !vizSettings.autoIdle})} className={`w-12 h-6 rounded-full relative transition-colors ${vizSettings.autoIdle ? 'bg-green-500' : 'bg-slate-700'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${vizSettings.autoIdle ? 'left-7' : 'left-1'}`}></div>
+                            </button>
+                        </div>
                     </div>
                 </div>
              )}
@@ -391,6 +416,126 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                              </button>
                          ))}
                      </div>
+                 </div>
+             )}
+
+             {/* AMBIENCE TAB */}
+             {activeTab === 'ambience' && (
+                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                    <button onClick={() => setActiveTab('settings')} className="self-start mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white flex items-center gap-1">← Back</button>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text-base)] opacity-60">{t.ambience} Mixer</h3>
+                        <div className="flex items-center gap-2">
+                             <span className="text-[9px] font-bold text-slate-400 uppercase">{t.spatialAudio}</span>
+                             <button onClick={() => updateAmbience('is8DEnabled', !ambience.is8DEnabled)} className={`w-8 h-4 rounded-full relative transition-all ${ambience.is8DEnabled ? 'bg-secondary' : 'bg-slate-700'}`}>
+                                 <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${ambience.is8DEnabled ? 'left-4.5' : 'left-0.5'}`}></div>
+                             </button>
+                        </div>
+                    </div>
+                    {ambience.is8DEnabled && <p className="text-[9px] text-secondary text-center font-bold animate-pulse">{t.spatialHint}</p>}
+                    
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                         <div className="flex justify-between items-center mb-4">
+                             <div className="flex items-center gap-2">
+                                <span className="text-xl">🌧️</span>
+                                <span className="text-[9px] font-bold text-white uppercase">{t.rain}</span>
+                             </div>
+                             <div className="flex bg-black/40 rounded-lg p-0.5">
+                                 <button onClick={() => updateAmbience('rainVariant', 'soft')} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-md transition-all ${ambience.rainVariant === 'soft' ? 'bg-primary text-white' : 'text-slate-500'}`}>Soft</button>
+                                 <button onClick={() => updateAmbience('rainVariant', 'roof')} className={`px-3 py-1 text-[9px] font-bold uppercase rounded-md transition-all ${ambience.rainVariant === 'roof' ? 'bg-primary text-white' : 'text-slate-500'}`}>Storm/Roof</button>
+                             </div>
+                         </div>
+                         <input type="range" min="0" max="1" step="0.01" value={ambience.rainVolume} onChange={(e) => updateAmbience('rainVolume', parseFloat(e.target.value))} className="w-full h-1.5 bg-white/10 rounded-full accent-white cursor-pointer" />
+                    </div>
+                </div>
+             )}
+
+             {/* TIMER & ALARM TAB */}
+             {activeTab === 'timer' && (
+                 <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+                     <button onClick={() => setActiveTab('settings')} className="self-start mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white flex items-center gap-1">← Back</button>
+                     
+                     {/* Sleep Timer Section */}
+                     <div className="space-y-4">
+                         <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                             <MoonIcon className="w-5 h-5" />
+                             {t.sleepTimer}
+                         </h3>
+                         {sleepTimer ? (
+                             <div className="p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
+                                 <div className="text-4xl font-black text-white mb-2 tabular-nums">
+                                     {Math.floor(sleepTimer / 60).toString().padStart(2,'0')}:{(sleepTimer % 60).toString().padStart(2,'0')}
+                                 </div>
+                                 <p className="text-xs text-slate-400 mb-4 uppercase tracking-wider">Time Remaining</p>
+                                 <button 
+                                    onClick={() => setSleepTimer(null)}
+                                    className="px-6 py-2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                                 >
+                                     {t.turnOffTimer}
+                                 </button>
+                             </div>
+                         ) : (
+                             <div className="grid grid-cols-3 gap-3">
+                                 {[15, 30, 45, 60, 90, 120].map(m => (
+                                     <button 
+                                        key={m}
+                                        onClick={() => setSleepTimer(m)}
+                                        className="py-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white font-bold transition-all border border-transparent hover:border-white/10"
+                                     >
+                                         {m} m
+                                     </button>
+                                 ))}
+                             </div>
+                         )}
+                     </div>
+
+                     <div className="w-full h-px bg-white/10"></div>
+
+                     {/* Alarm Clock Section */}
+                     <div className="space-y-4">
+                         <div className="flex items-center justify-between">
+                             <h3 className="text-sm font-black uppercase tracking-widest text-secondary flex items-center gap-2">
+                                 <BellIcon className="w-5 h-5" />
+                                 {t.alarm}
+                             </h3>
+                             <button 
+                                onClick={() => updateAlarm('enabled', !alarm.enabled)}
+                                className={`w-12 h-6 rounded-full relative transition-colors ${alarm.enabled ? 'bg-secondary' : 'bg-slate-700'}`}
+                             >
+                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${alarm.enabled ? 'left-7' : 'left-1'}`}></div>
+                             </button>
+                         </div>
+
+                         <div className={`space-y-4 transition-opacity ${alarm.enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                             <div className="flex items-center justify-center">
+                                 <input 
+                                    type="time" 
+                                    value={alarm.time}
+                                    onChange={(e) => updateAlarm('time', e.target.value)}
+                                    className="bg-transparent text-5xl font-black text-white outline-none border-b-2 border-white/20 focus:border-secondary transition-colors text-center w-full max-w-[200px]"
+                                 />
+                             </div>
+                             
+                             <div className="flex justify-between gap-1">
+                                 {['S','M','T','W','T','F','S'].map((d, i) => {
+                                     const isSelected = alarm.days.includes(i);
+                                     return (
+                                         <button 
+                                            key={i}
+                                            onClick={() => toggleAlarmDay(i)}
+                                            className={`w-10 h-10 rounded-full text-xs font-black transition-all ${isSelected ? 'bg-secondary text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10'}`}
+                                         >
+                                             {d}
+                                         </button>
+                                     )
+                                 })}
+                             </div>
+                             <p className="text-[10px] text-center text-slate-500 uppercase font-bold tracking-widest">
+                                 {t.alarm_set} {alarm.enabled ? t.on : t.off} • {alarm.time}
+                             </p>
+                         </div>
+                     </div>
+
                  </div>
              )}
 

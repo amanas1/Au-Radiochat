@@ -125,6 +125,7 @@ const App: React.FC = () => {
 
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [isNewsVisible, setIsNewsVisible] = useState(true);
+  const [imgError, setImgError] = useState(false);
 
   const currentStation = stations[currentStationIndex];
   const t = TRANSLATIONS[language];
@@ -132,6 +133,11 @@ const App: React.FC = () => {
   useEffect(() => {
       localStorage.setItem('streamflow_autostart', JSON.stringify(autoStart));
   }, [autoStart]);
+
+  // Reset image error state when station changes
+  useEffect(() => {
+      setImgError(false);
+  }, [currentStationIndex, stations]);
 
   const playSafe = (audio: HTMLAudioElement) => {
       const p = audio.play();
@@ -338,18 +344,20 @@ const App: React.FC = () => {
       return () => clearInterval(interval);
   }, [aiSpeechFilter, isPlaying, currentStation]);
 
+  // --- IDLE MODE LOGIC ---
   useEffect(() => {
       let timeout: number;
       const resetIdle = () => {
-          setUiVisible(true);
+          if (!uiVisible) setUiVisible(true);
           clearTimeout(timeout);
-          // Only activate idle mode if enabled via the toggle
-          if (idleModeEnabled && !toolsOpen && !chatOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
+          // Auto-hide UI if autoIdle enabled OR visualizer mode selected
+          if ((vizSettings.autoIdle || fullScreenStyle === 'visualizer') && !toolsOpen && !chatOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
               timeout = window.setTimeout(() => {
                   setUiVisible(false);
-              }, 20000); // 20 seconds as requested
+              }, 20000); // 20 seconds
           }
       };
+      
       resetIdle();
       window.addEventListener('mousemove', resetIdle);
       window.addEventListener('mousedown', resetIdle);
@@ -362,7 +370,7 @@ const App: React.FC = () => {
           window.removeEventListener('touchstart', resetIdle);
           window.removeEventListener('keydown', resetIdle);
       };
-  }, [idleModeEnabled, toolsOpen, chatOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen]);
+  }, [vizSettings.autoIdle, fullScreenStyle, toolsOpen, chatOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen, uiVisible]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -592,21 +600,22 @@ const App: React.FC = () => {
       }
   };
 
-  // --- CURSOR TRACKING FOR CATEGORY NAV ---
+  // --- CURSOR TRACKING FOR CATEGORY NAV (Sensitivity Fix) ---
   useEffect(() => {
       const container = categoryContainerRef.current;
       if (!container) return;
 
       const handleMove = (e: MouseEvent | TouchEvent) => {
           const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+          const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
           const windowWidth = window.innerWidth;
           
+          // Only trigger tracking if cursor is in the top 200px (closer to genres)
+          if (clientY > 200) return;
+
           // Calculate percentage of screen width (0 to 1)
           const percentage = Math.max(0, Math.min(1, clientX / windowWidth));
           
-          // Map percentage to scroll position
-          // Left side of screen -> Scroll Start
-          // Right side of screen -> Scroll End
           const maxScroll = container.scrollWidth - container.clientWidth;
           const targetScroll = maxScroll * percentage;
           
@@ -621,7 +630,6 @@ const App: React.FC = () => {
       };
 
       const onInteraction = (e: MouseEvent | TouchEvent) => {
-          // Only track if not dragging something else
           requestAnimationFrame(() => handleMove(e));
       };
 
@@ -657,7 +665,7 @@ const App: React.FC = () => {
     '--panel-bg': baseTheme === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)',
     '--panel-border': baseTheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
     '--text-base': baseTheme === 'dark' ? '#fff' : '#0f172a',
-    '--player-bar-bg': baseTheme === 'dark' ? '#0f172a' : '#ffffff'
+    '--player-bar-bg': baseTheme === 'dark' ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255, 255, 255, 0.8)'
   } as React.CSSProperties;
 
   const dummyPassport: PassportData = {
@@ -754,10 +762,17 @@ const App: React.FC = () => {
                                     style={{ borderColor: customCardColor ? `rgb(${customCardColor})` : 'rgba(255,255,255,0.1)' }}
                                 >
                                     <div className="absolute inset-0 rounded-[2.5rem] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] z-20 pointer-events-none"></div>
-                                    {currentStation.favicon ? (
-                                        <img src={currentStation.favicon} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80'; }} />
+                                    {!imgError && currentStation.favicon ? (
+                                        <img 
+                                            src={currentStation.favicon} 
+                                            className="w-full h-full object-cover" 
+                                            onError={(e) => { 
+                                                setImgError(true);
+                                                (e.target as HTMLImageElement).style.display = 'none';
+                                            }} 
+                                        />
                                     ) : (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black">
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black w-full h-full">
                                             <CardVisualizer analyserNode={analyserRef.current} isPlaying={isPlaying} color="var(--color-primary)" />
                                         </div>
                                     )}
@@ -773,7 +788,7 @@ const App: React.FC = () => {
                                     </p>
                                 </div>
 
-                                <div className={`w-full mt-2 bg-[var(--player-bar-bg)]/80 backdrop-blur-2xl border border-white/10 rounded-[3rem] px-6 py-4 md:px-8 md:py-5 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20`}>
+                                <div className={`w-full mt-2 bg-[var(--player-bar-bg)] backdrop-blur-2xl border border-white/10 rounded-[3rem] px-6 py-4 md:px-8 md:py-5 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20`}>
                                     {!isFocus && (
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
                                             <button onClick={() => setVolume(v => v === 0 ? 0.5 : 0)} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors shrink-0">

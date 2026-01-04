@@ -218,6 +218,22 @@ export const fetchStationsByTag = async (tag: string, limit: number = 40, qualit
   }
 };
 
+export const fetchRandomStations = async (limit: number = 20, quality: StreamQuality = 'standard'): Promise<RadioStation[]> => {
+    try {
+        const fetchLimit = limit * 5; 
+        const urlParams = `limit=${fetchLimit}&hidebroken=true&https=true`;
+        
+        const data = await fetchAcrossMirrorsWithRetries(`random`, urlParams);
+        
+        const filteredAndSliced = filterStations(data, quality).slice(0, limit);
+        
+        return filteredAndSliced;
+    } catch (error) {
+        console.error("Error fetching random stations:", error);
+        return [];
+    }
+};
+
 export const fetchStationsByUuids = async (uuids: string[]): Promise<RadioStation[]> => {
     if (uuids.length === 0) return [];
     
