@@ -1,5 +1,5 @@
 
-import { CategoryInfo, UserProfile, Achievement, PassportData } from './types';
+import { CategoryInfo, UserProfile, Achievement, PassportData, InterfaceMode } from './types';
 import { CloudIcon, FireIcon, MusicNoteIcon, GlobeIcon, MoonIcon, HeartIcon } from './components/Icons';
 import React from 'react';
 
@@ -187,6 +187,28 @@ export const NEWS_MESSAGES: Record<string, string[]> = {
     ]
 };
 
+export const EQ_PRESETS = [
+    { id: 'flat', name: 'Flat', ru: 'Сброс', values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { id: 'bass', name: 'Bass', ru: 'Бас', values: [8, 7, 6, 3, 0, 0, 0, 0, 0, 0] },
+    { id: 'rock', name: 'Rock', ru: 'Рок', values: [5, 3, 2, 0, -1, -1, 1, 3, 4, 5] },
+    { id: 'pop', name: 'Pop', ru: 'Поп', values: [-1, 1, 3, 4, 4, 3, 1, 0, -1, -1] },
+    { id: 'jazz', name: 'Jazz', ru: 'Джаз', values: [3, 2, 0, 1, 0, 0, 0, 1, 2, 3] },
+    { id: 'vocal', name: 'Vocal', ru: 'Вокал', values: [-3, -3, -1, 1, 4, 5, 4, 2, 0, -1] },
+    { id: 'treble', name: 'Treble', ru: 'Высокие', values: [0, 0, 0, 0, 0, 2, 4, 6, 7, 8] },
+    { id: 'soft', name: 'Soft', ru: 'Мягко', values: [2, 1, 0, -1, -2, -1, 0, 1, 1, 2] },
+    { id: 'loudness', name: 'Loudness', ru: 'Громкость', values: [4, 2, 0, -2, -2, 0, 2, 4, 5, 5] },
+    { id: 'bass_boost', name: 'Bass Boost', ru: 'Усиление НЧ', values: [12, 10, 8, 5, 2, 0, 0, 0, 0, 0] },
+    { id: 'high_pass', name: 'High Pass', ru: 'Хай-пасс', values: [-12, -12, -10, -5, 0, 0, 0, 0, 0, 0] },
+];
+
+export const INTERFACE_MODES: { id: InterfaceMode, name: string }[] = [
+    { id: 'standard', name: 'Standard' },
+    { id: 'minimal', name: 'Minimal' },
+    { id: 'classic', name: 'Classic' },
+    { id: 'focus', name: 'Focus' },
+    { id: 'party', name: 'Party' }
+];
+
 export const TRANSLATIONS: Record<string, any> = {
     en: {
         genres: 'Genres', eras: 'Eras', moods: 'Moods', effects: 'Effects', favorites: 'Favorites',
@@ -220,7 +242,8 @@ export const TRANSLATIONS: Record<string, any> = {
         sendSuccess: "Message sent!",
         manualTooltip: "User Manual",
         showWhere: "Show location",
-        helpImprove: "Help us improve StreamFlow."
+        helpImprove: "Help us improve StreamFlow.",
+        interfaceMode: "Interface Mode"
     },
     ru: {
         genres: 'Жанры', eras: 'Эпохи', moods: 'Настроение', effects: 'Эффекты', favorites: 'Избранное',
@@ -254,6 +277,7 @@ export const TRANSLATIONS: Record<string, any> = {
         sendSuccess: "Сообщение отправлено!",
         manualTooltip: "Мануал",
         showWhere: "Показать где",
-        helpImprove: "Помогите нам улучшить StreamFlow."
+        helpImprove: "Помогите нам улучшить StreamFlow.",
+        interfaceMode: "Режим Интерфейса"
     }
 };

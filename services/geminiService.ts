@@ -1,7 +1,7 @@
 
 import { RadioStation } from '../types';
 
-// AI capabilities have been removed to resolve Vercel deployment issues with @google/genai package.
+// AI capabilities have been removed to resolve Vercel deployment issues.
 // These are stub functions to maintain type safety in the rest of the application.
 
 export const isAiAvailable = (): boolean => {

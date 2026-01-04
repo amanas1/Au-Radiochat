@@ -62,6 +62,7 @@ export type ThemeName =
   | 'forest';
 
 export type BaseTheme = 'dark' | 'light' | 'auto';
+export type InterfaceMode = 'standard' | 'minimal' | 'classic' | 'focus' | 'party';
 export type Language = 'en' | 'ru';
 export type StreamQuality = 'economy' | 'standard' | 'premium';
 

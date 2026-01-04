@@ -3,18 +3,23 @@ import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { 
   RadioStation, UserProfile, ThemeName, BaseTheme, Language, 
   VisualizerVariant, VisualizerSettings, AmbienceState, PassportData, 
-  AlarmConfig, FxSettings, StreamQuality, CategoryInfo
+  AlarmConfig, FxSettings, StreamQuality, CategoryInfo, InterfaceMode
 } from './types';
 import { 
   DEFAULT_VOLUME, TRANSLATIONS, GENRES, MOODS, ERAS, NEWS_MESSAGES 
 } from './constants';
-import { fetchStationsByTag } from './services/radioService';
+import { fetchStationsByTag, fetchRandomStations } from './services/radioService';
+import { detectSpeechFromSpectrum, isAiAvailable, optimizeStationList } from './services/geminiService';
 import { 
   MusicNoteIcon, VolumeIcon, PreviousIcon, NextIcon, PlayIcon, PauseIcon, 
-  LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, BellIcon, SparklesIcon, MaximizeIcon, XMarkIcon
+  LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, BellIcon, SparklesIcon, MaximizeIcon, XMarkIcon,
+  MinusIcon, PlusIcon
 } from './components/Icons';
 
 import AudioVisualizer from './components/AudioVisualizer';
+import DancingAvatar from './components/DancingAvatar';
+import CardVisualizer from './components/CardVisualizer';
+
 // Lazy load heavy components
 const ToolsPanel = React.lazy(() => import('./components/ToolsPanel'));
 const ChatPanel = React.lazy(() => import('./components/ChatPanel'));
@@ -49,6 +54,7 @@ const App: React.FC = () => {
   // --- UI State ---
   const [activeView, setActiveView] = useState<'player' | 'globe' | 'drum' | 'downloader' | 'browser'>('player');
   const [fullScreenStyle, setFullScreenStyle] = useState<'player' | 'visualizer'>('player');
+  const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>('standard');
   const [uiVisible, setUiVisible] = useState(true);
   
   // Modals & Panels
@@ -79,7 +85,11 @@ const App: React.FC = () => {
   const [eqGains, setEqGains] = useState<number[]>(new Array(10).fill(0));
   const [fxSettings, setFxSettings] = useState<FxSettings>({ reverb: 0, speed: 1.0 });
   const [streamQuality, setStreamQuality] = useState<StreamQuality>('standard');
+  const [idleModeEnabled, setIdleModeEnabled] = useState(false);
   
+  const [isShuffleEnabled, setIsShuffleEnabled] = useState(false); // New Shuffle State
+  const [currentCategory, setCurrentCategory] = useState<CategoryInfo | null>(null);
+
   const [autoStart, setAutoStart] = useState(() => {
       const saved = localStorage.getItem('streamflow_autostart');
       return saved !== null ? JSON.parse(saved) : true; 
@@ -87,6 +97,8 @@ const App: React.FC = () => {
 
   const [showDevNews, setShowDevNews] = useState(false);
   const [customCardColor, setCustomCardColor] = useState<string | null>(null);
+  const [aiSpeechFilter, setAiSpeechFilter] = useState(false);
+  const [aiProcessing, setAiProcessing] = useState(false);
   
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
@@ -108,6 +120,8 @@ const App: React.FC = () => {
   const pannerIntervalRef = useRef<number | null>(null);
   const retryWithoutCorsRef = useRef(false);
   const errorCountRef = useRef(0);
+
+  const categoryContainerRef = useRef<HTMLDivElement>(null);
 
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [isNewsVisible, setIsNewsVisible] = useState(true);
@@ -234,7 +248,7 @@ const App: React.FC = () => {
       return () => {
           if (pannerIntervalRef.current) cancelAnimationFrame(pannerIntervalRef.current);
       };
-  }, [ambience.is8DEnabled, isPlaying]);
+  }, [ambience.is8DEnabled, ambience.spatialSpeed, isPlaying]);
 
   useEffect(() => {
       if (!showDevNews) return;
@@ -248,41 +262,6 @@ const App: React.FC = () => {
       }, 5000 + 1000);
       return () => clearInterval(interval);
   }, [showDevNews, language]);
-
-  useEffect(() => {
-      let timeout: number;
-      const resetIdle = () => {
-          setUiVisible(true);
-          clearTimeout(timeout);
-          if (fullScreenStyle === 'visualizer' && !toolsOpen && !chatOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
-              timeout = window.setTimeout(() => {
-                  setUiVisible(false);
-              }, 30000);
-          }
-      };
-      resetIdle();
-      window.addEventListener('mousemove', resetIdle);
-      window.addEventListener('mousedown', resetIdle);
-      window.addEventListener('touchstart', resetIdle);
-      window.addEventListener('keydown', resetIdle);
-      return () => {
-          clearTimeout(timeout);
-          window.removeEventListener('mousemove', resetIdle);
-          window.removeEventListener('mousedown', resetIdle);
-          window.removeEventListener('touchstart', resetIdle);
-          window.removeEventListener('keydown', resetIdle);
-      };
-  }, [fullScreenStyle, toolsOpen, chatOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen]);
-
-  useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-      setDownloadModalOpen(true);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
 
   const loadStations = async (tag = 'chill') => {
       setStationsLoading(true);
@@ -303,6 +282,97 @@ const App: React.FC = () => {
         setStationsLoading(false);
       }
   };
+
+  const handleNextStation = (e?: React.MouseEvent | any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (stations.length === 0) return;
+    setIsBuffering(true);
+    if (stations.length === 1) {
+        setStationVersion(v => v + 1);
+        return;
+    }
+    setCurrentStationIndex(prev => (prev + 1) % stations.length);
+  };
+
+  const handlePreviousStation = (e?: React.MouseEvent | any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (stations.length === 0) return;
+    setIsBuffering(true);
+    if (stations.length === 1) {
+        setStationVersion(v => v + 1);
+        return;
+    }
+    setCurrentStationIndex(prev => (prev - 1 + stations.length) % stations.length);
+  };
+
+  const togglePlay = (e?: React.MouseEvent | any) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (stations.length === 0) return;
+    setIsPlaying(!isPlaying);
+  };
+
+  useEffect(() => {
+      let interval: any;
+      if (aiSpeechFilter && isPlaying && isAiAvailable() && analyserRef.current && currentStation) {
+          interval = setInterval(async () => {
+              if (!analyserRef.current) return;
+              const tags = (currentStation.tags || '').toLowerCase();
+              if (tags.includes('hip hop') || tags.includes('hip-hop') || tags.includes('rap')) return;
+
+              const bufferLength = analyserRef.current.frequencyBinCount;
+              const dataArray = new Uint8Array(bufferLength);
+              analyserRef.current.getByteFrequencyData(dataArray);
+              const hasData = dataArray.some(val => val > 0);
+              
+              if (hasData && !retryWithoutCorsRef.current) { 
+                  setAiProcessing(true);
+                  const spectrum = Array.from(dataArray);
+                  const isSpeech = await detectSpeechFromSpectrum(spectrum);
+                  setAiProcessing(false);
+                  if (isSpeech) {
+                      handleNextStation();
+                  }
+              }
+          }, 10000); 
+      }
+      return () => clearInterval(interval);
+  }, [aiSpeechFilter, isPlaying, currentStation]);
+
+  useEffect(() => {
+      let timeout: number;
+      const resetIdle = () => {
+          setUiVisible(true);
+          clearTimeout(timeout);
+          // Only activate idle mode if enabled via the toggle
+          if (idleModeEnabled && !toolsOpen && !chatOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
+              timeout = window.setTimeout(() => {
+                  setUiVisible(false);
+              }, 20000); // 20 seconds as requested
+          }
+      };
+      resetIdle();
+      window.addEventListener('mousemove', resetIdle);
+      window.addEventListener('mousedown', resetIdle);
+      window.addEventListener('touchstart', resetIdle);
+      window.addEventListener('keydown', resetIdle);
+      return () => {
+          clearTimeout(timeout);
+          window.removeEventListener('mousemove', resetIdle);
+          window.removeEventListener('mousedown', resetIdle);
+          window.removeEventListener('touchstart', resetIdle);
+          window.removeEventListener('keydown', resetIdle);
+      };
+  }, [idleModeEnabled, toolsOpen, chatOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen]);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setDownloadModalOpen(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
 
   useEffect(() => {
     loadStations();
@@ -457,34 +527,6 @@ const App: React.FC = () => {
       return () => clearInterval(interval);
   }, [sleepTimer]);
 
-  const handleNextStation = (e?: React.MouseEvent | any) => {
-    if (e && e.stopPropagation) e.stopPropagation();
-    if (stations.length === 0) return;
-    setIsBuffering(true);
-    if (stations.length === 1) {
-        setStationVersion(v => v + 1);
-        return;
-    }
-    setCurrentStationIndex(prev => (prev + 1) % stations.length);
-  };
-
-  const handlePreviousStation = (e?: React.MouseEvent | any) => {
-    if (e && e.stopPropagation) e.stopPropagation();
-    if (stations.length === 0) return;
-    setIsBuffering(true);
-    if (stations.length === 1) {
-        setStationVersion(v => v + 1);
-        return;
-    }
-    setCurrentStationIndex(prev => (prev - 1 + stations.length) % stations.length);
-  };
-
-  const togglePlay = (e?: React.MouseEvent | any) => {
-    if (e && e.stopPropagation) e.stopPropagation();
-    if (stations.length === 0) return;
-    setIsPlaying(!isPlaying);
-  };
-
   const handleProfileUpdate = (profile: UserProfile) => {
     setUserProfile(profile);
     localStorage.setItem('streamflow_user_profile', JSON.stringify(profile));
@@ -510,6 +552,22 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAiOptimization = async () => {
+      setIsBuffering(true);
+      try {
+          const optimized = await optimizeStationList(stations);
+          setStations(optimized);
+          setCurrentStationIndex(0);
+          setStationVersion(v => v + 1);
+      } catch (e) {
+          console.error("Optimization failed", e);
+      } finally {
+          setIsBuffering(false);
+          setToolsOpen(false);
+      }
+  };
+
+  // Re-creates the Audio Context if output device is lost/switched
   const handleRestartAudio = async () => {
       if (audioContextRef.current) {
           await audioContextRef.current.close();
@@ -534,14 +592,54 @@ const App: React.FC = () => {
       }
   };
 
+  // --- CURSOR TRACKING FOR CATEGORY NAV ---
+  useEffect(() => {
+      const container = categoryContainerRef.current;
+      if (!container) return;
+
+      const handleMove = (e: MouseEvent | TouchEvent) => {
+          const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+          const windowWidth = window.innerWidth;
+          
+          // Calculate percentage of screen width (0 to 1)
+          const percentage = Math.max(0, Math.min(1, clientX / windowWidth));
+          
+          // Map percentage to scroll position
+          // Left side of screen -> Scroll Start
+          // Right side of screen -> Scroll End
+          const maxScroll = container.scrollWidth - container.clientWidth;
+          const targetScroll = maxScroll * percentage;
+          
+          // Smooth scroll
+          const currentScroll = container.scrollLeft;
+          const diff = targetScroll - currentScroll;
+          
+          if (Math.abs(diff) > 1) {
+              container.scrollLeft = currentScroll + diff * 0.1; // Lerp factor
+              requestAnimationFrame(() => handleMove(e));
+          }
+      };
+
+      const onInteraction = (e: MouseEvent | TouchEvent) => {
+          // Only track if not dragging something else
+          requestAnimationFrame(() => handleMove(e));
+      };
+
+      window.addEventListener('mousemove', onInteraction);
+      window.addEventListener('touchmove', onInteraction);
+
+      return () => {
+          window.removeEventListener('mousemove', onInteraction);
+          window.removeEventListener('touchmove', onInteraction);
+      };
+  }, []);
+
   if (!userProfile) {
     return (
-      <Suspense fallback={<div className="w-screen h-screen bg-black flex items-center justify-center"><LoadingIcon className="w-12 h-12 text-primary animate-spin" /></div>}>
-        <ProfileSetup 
-          onComplete={handleProfileUpdate} 
-          language={language}
-        />
-      </Suspense>
+      <ProfileSetup 
+        onComplete={handleProfileUpdate} 
+        language={language}
+      />
     );
   }
 
@@ -573,6 +671,11 @@ const App: React.FC = () => {
 
   const newsMessages = NEWS_MESSAGES[language] || NEWS_MESSAGES.en;
 
+  // Render logic based on Interface Mode
+  const isMinimal = interfaceMode === 'minimal' || interfaceMode === 'focus';
+  const isFocus = interfaceMode === 'focus';
+  const isParty = interfaceMode === 'party';
+
   return (
     <div className={`relative w-full h-[100dvh] overflow-hidden ${baseTheme} font-sans text-[var(--text-base)] select-none`} style={themeStyle}>
         
@@ -580,18 +683,16 @@ const App: React.FC = () => {
             <AudioVisualizer 
                 analyserNode={analyserRef.current} 
                 isPlaying={isPlaying} 
-                variant={vizVariant}
-                settings={vizSettings}
+                variant={isParty ? 'stage-dancer' : vizVariant}
+                settings={{...vizSettings, brightness: isParty ? 150 : vizSettings.brightness, speed: isParty ? 1.5 : vizSettings.speed}}
             />
         </div>
 
-        <Suspense fallback={null}>
-            <MusicStorm analyserNode={analyserRef.current} isPlaying={isPlaying && ambience.rainVolume > 0} />
-        </Suspense>
+        <MusicStorm analyserNode={analyserRef.current} isPlaying={isPlaying && ambience.rainVolume > 0} />
         
         <div className={`relative z-10 flex flex-col h-full transition-opacity duration-1000 ease-in-out ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             
-            {showDevNews && (
+            {showDevNews && !isFocus && (
                 <div className="absolute top-20 md:top-24 left-0 right-0 z-[120] h-12 flex items-center justify-center pointer-events-none px-4 text-center">
                     <div 
                         className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-base)] transition-opacity duration-1000 ${isNewsVisible ? 'opacity-100' : 'opacity-0'}`}
@@ -603,9 +704,13 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {activeView === 'player' && (
+            {activeView === 'player' && !isMinimal && (
                 <div className="w-full flex flex-col pt-6 pb-2 z-30 shrink-0 animate-in slide-in-from-top-4 duration-700 pointer-events-auto">
-                    <div className="w-full overflow-x-auto no-scrollbar" style={{ maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)' }}>
+                    <div 
+                        ref={categoryContainerRef}
+                        className="w-full overflow-x-hidden no-scrollbar cursor-none" 
+                        style={{ maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)' }}
+                    >
                         <div className="flex gap-3 px-6 w-max">
                              {[...MOODS, ...GENRES, ...ERAS].map(cat => (
                                  <button
@@ -631,7 +736,7 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            <div className="flex-1 pointer-events-auto flex flex-col">
+            <div className="flex-1 pointer-events-auto flex flex-col justify-center">
                 {activeView === 'player' && (
                     stationsLoading ? (
                         <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-in fade-in">
@@ -640,44 +745,50 @@ const App: React.FC = () => {
                              <p className="text-[var(--text-muted)] text-sm max-w-md">{language === 'ru' ? 'Подключаемся к глобальным серверам.' : 'Connecting to global radio servers.'}</p>
                         </div>
                     ) : stations.length > 0 && currentStation ? (
-                        <div className="flex-1 flex flex-col landscape:flex-row items-center justify-center gap-8 landscape:gap-16 w-full h-full p-4 animate-in fade-in duration-500">
+                        <div className={`flex flex-col ${isMinimal ? 'items-center gap-4' : 'landscape:flex-row items-center justify-center gap-8 landscape:gap-16'} w-full h-full p-4 animate-in fade-in duration-500`}>
+                            {/* Card Section */}
                             <div className="relative group perspective-1000 flex-shrink-0">
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-[2.5rem] blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-1000 animate-gradient-xy"></div>
+                                {!isMinimal && <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-[2.5rem] blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-1000 animate-gradient-xy"></div>}
                                 <div 
-                                    className="w-[70vw] h-[70vw] max-w-[320px] max-h-[320px] md:max-w-[400px] md:max-h-[400px] landscape:w-[45vh] landscape:h-[45vh] landscape:max-w-[320px] landscape:max-h-[320px] rounded-[2.5rem] relative z-10 overflow-hidden shadow-2xl border border-white/10 bg-black transform transition-transform duration-500 hover:scale-[1.02]"
+                                    className={`${isMinimal ? 'w-[200px] h-[200px] rounded-[2rem]' : 'w-[70vw] h-[70vw] max-w-[320px] max-h-[320px] md:max-w-[400px] md:max-h-[400px] landscape:w-[45vh] landscape:h-[45vh] landscape:max-w-[320px] landscape:max-h-[320px] rounded-[2.5rem]'} relative z-10 overflow-hidden shadow-2xl border border-white/10 bg-black transform transition-transform duration-500 hover:scale-[1.02]`}
                                     style={{ borderColor: customCardColor ? `rgb(${customCardColor})` : 'rgba(255,255,255,0.1)' }}
                                 >
                                     <div className="absolute inset-0 rounded-[2.5rem] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] z-20 pointer-events-none"></div>
                                     {currentStation.favicon ? (
                                         <img src={currentStation.favicon} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80'; }} />
                                     ) : (
-                                        <MusicNoteIcon className="w-32 h-32 text-slate-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black">
+                                            <CardVisualizer analyserNode={analyserRef.current} isPlaying={isPlaying} color="var(--color-primary)" />
+                                        </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="flex flex-col w-full max-w-2xl landscape:max-w-md items-center landscape:items-start justify-center">
-                                <div className="text-center w-full px-8 relative z-10 mx-auto landscape:text-left landscape:px-0 landscape:mb-4">
-                                    <h2 className="text-2xl md:text-3xl font-black text-[var(--text-base)] mb-2 line-clamp-2 leading-tight drop-shadow-lg">{currentStation.name}</h2>
+                            {/* Controls Section */}
+                            <div className={`flex flex-col w-full ${isMinimal ? 'max-w-xs' : 'max-w-2xl landscape:max-w-md'} items-center ${!isMinimal && 'landscape:items-start'} justify-center`}>
+                                <div className={`text-center w-full px-8 relative z-10 mx-auto ${!isMinimal && 'landscape:text-left landscape:px-0 landscape:mb-4'}`}>
+                                    <h2 className={`${isMinimal ? 'text-xl' : 'text-2xl md:text-3xl'} font-black text-[var(--text-base)] mb-2 line-clamp-2 leading-tight drop-shadow-lg`}>{currentStation.name}</h2>
                                     <p className="text-xs md:text-sm text-[var(--text-muted)] font-bold uppercase tracking-widest opacity-70 truncate">
                                         {currentStation.tags || 'Global Radio'}
                                     </p>
                                 </div>
 
-                                <div className="w-full mt-2 bg-[var(--player-bar-bg)]/80 backdrop-blur-2xl border border-white/10 rounded-[3rem] px-6 py-4 md:px-8 md:py-5 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20">
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <button onClick={() => setVolume(v => v === 0 ? 0.5 : 0)} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors shrink-0">
-                                            <VolumeIcon className="w-5 h-5" />
-                                        </button>
-                                        <div className="h-1 bg-[var(--text-muted)]/20 rounded-full flex-1 max-w-[60px] md:max-w-[100px] relative group cursor-pointer">
-                                                <div className="absolute inset-0 bg-[var(--text-base)] origin-left rounded-full transition-all" style={{ width: `${volume * 100}%` }}></div>
-                                                <input 
-                                                    type="range" min="0" max="1" step="0.01" 
-                                                    value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                                />
+                                <div className={`w-full mt-2 bg-[var(--player-bar-bg)]/80 backdrop-blur-2xl border border-white/10 rounded-[3rem] px-6 py-4 md:px-8 md:py-5 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20`}>
+                                    {!isFocus && (
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <button onClick={() => setVolume(v => v === 0 ? 0.5 : 0)} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors shrink-0">
+                                                <VolumeIcon className="w-5 h-5" />
+                                            </button>
+                                            <div className="h-1 bg-[var(--text-muted)]/20 rounded-full flex-1 max-w-[60px] md:max-w-[100px] relative group cursor-pointer">
+                                                    <div className="absolute inset-0 bg-[var(--text-base)] origin-left rounded-full transition-all" style={{ width: `${volume * 100}%` }}></div>
+                                                    <input 
+                                                        type="range" min="0" max="1" step="0.01" 
+                                                        value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                    />
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     <div className="flex items-center gap-4 md:gap-6 justify-center flex-1 shrink-0">
                                         <button onClick={handlePreviousStation} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-all hover:scale-110 active:scale-95"><PreviousIcon className="w-6 h-6 md:w-8 md:h-8" /></button>
@@ -687,17 +798,19 @@ const App: React.FC = () => {
                                         <button onClick={handleNextStation} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-all hover:scale-110 active:scale-95"><NextIcon className="w-6 h-6 md:w-8 md:h-8" /></button>
                                     </div>
 
-                                    <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
-                                            <button onClick={() => setFullScreenStyle('visualizer')} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Visualizer Mode">
-                                                <SparklesIcon className="w-5 h-5" /> 
-                                            </button>
-                                            <button onClick={() => { setInitialToolsTab('eq'); setToolsOpen(true); }} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Equalizer">
-                                                <AdjustmentsIcon className="w-5 h-5" />
-                                            </button>
-                                            <button onClick={() => setContextMenuOpen(!contextMenuOpen)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full">
-                                                <MenuIcon className="w-5 h-5" />
-                                            </button>
-                                    </div>
+                                    {!isFocus && (
+                                        <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
+                                                <button onClick={() => setFullScreenStyle('visualizer')} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Visualizer Mode">
+                                                    <SparklesIcon className="w-5 h-5" /> 
+                                                </button>
+                                                <button onClick={() => { setInitialToolsTab('eq'); setToolsOpen(true); }} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Equalizer">
+                                                    <AdjustmentsIcon className="w-5 h-5" />
+                                                </button>
+                                                <button onClick={() => setContextMenuOpen(!contextMenuOpen)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full">
+                                                    <MenuIcon className="w-5 h-5" />
+                                                </button>
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 {sleepTimer && (
@@ -771,76 +884,80 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            <Suspense fallback={null}>
-                <ToolsPanel 
-                    isOpen={toolsOpen} 
-                    onClose={() => setToolsOpen(false)}
-                    initialTab={initialToolsTab}
-                    language={language}
-                    setLanguage={setLanguage}
-                    eqGains={eqGains}
-                    setEqGain={(idx, val) => { const n = [...eqGains]; n[idx] = val; setEqGains(n); }} 
-                    onSetEqValues={(vals) => setEqGains(vals)}
-                    sleepTimer={sleepTimer}
-                    setSleepTimer={setSleepTimer}
-                    currentTheme={theme}
-                    setTheme={setTheme}
-                    baseTheme={baseTheme}
-                    setBaseTheme={setBaseTheme}
-                    visualizerVariant={vizVariant}
-                    setVisualizerVariant={setVizVariant}
-                    vizSettings={vizSettings}
-                    setVizSettings={setVizSettings}
-                    onStartTutorial={() => { setToolsOpen(false); setTutorialOpen(true); }}
-                    onOpenManual={() => { setToolsOpen(false); setManualOpen(true); }}
-                    onOpenProfile={() => { setToolsOpen(false); setUserProfile(null); }}
-                    onOpenGithub={() => { setToolsOpen(false); setGithubModalOpen(true); }}
-                    showDeveloperNews={showDevNews}
-                    setShowDeveloperNews={setShowDevNews}
-                    ambience={ambience}
-                    setAmbience={setAmbience}
-                    passport={dummyPassport}
-                    alarm={alarm}
-                    setAlarm={setAlarm}
-                    onThrowBottle={() => {}}
-                    onCheckBottle={() => {}}
-                    customCardColor={customCardColor}
-                    setCustomCardColor={setCustomCardColor}
-                    fxSettings={fxSettings}
-                    setFxSettings={setFxSettings}
-                    streamQuality={streamQuality}
-                    setStreamQuality={setStreamQuality}
-                    autoStart={autoStart}
-                    setAutoStart={setAutoStart}
-                    onOpenChat={() => { setToolsOpen(false); setChatOpen(true); }}
-                    fullScreenStyle={fullScreenStyle}
-                    setFullScreenStyle={setFullScreenStyle}
-                    onRestartAudio={handleRestartAudio}
-                />
+            <ToolsPanel 
+                isOpen={toolsOpen} 
+                onClose={() => setToolsOpen(false)}
+                initialTab={initialToolsTab}
+                language={language}
+                setLanguage={setLanguage}
+                eqGains={eqGains}
+                setEqGain={(idx, val) => { const n = [...eqGains]; n[idx] = val; setEqGains(n); }} 
+                onSetEqValues={(vals) => setEqGains(vals)}
+                sleepTimer={sleepTimer}
+                setSleepTimer={setSleepTimer}
+                currentTheme={theme}
+                setTheme={setTheme}
+                baseTheme={baseTheme}
+                setBaseTheme={setBaseTheme}
+                visualizerVariant={vizVariant}
+                setVisualizerVariant={setVizVariant}
+                vizSettings={vizSettings}
+                setVizSettings={setVizSettings}
+                onStartTutorial={() => { setToolsOpen(false); setTutorialOpen(true); }}
+                onOpenManual={() => { setToolsOpen(false); setManualOpen(true); }}
+                onOpenProfile={() => { setToolsOpen(false); setUserProfile(null); }}
+                showDeveloperNews={showDevNews}
+                setShowDeveloperNews={setShowDevNews}
+                ambience={ambience}
+                setAmbience={setAmbience}
+                passport={dummyPassport}
+                alarm={alarm}
+                setAlarm={setAlarm}
+                onThrowBottle={() => {}}
+                onCheckBottle={() => {}}
+                customCardColor={customCardColor}
+                setCustomCardColor={setCustomCardColor}
+                fxSettings={fxSettings}
+                setFxSettings={setFxSettings}
+                streamQuality={streamQuality}
+                setStreamQuality={setStreamQuality}
+                autoStart={autoStart}
+                setAutoStart={setAutoStart}
+                aiSpeechFilter={aiSpeechFilter}
+                setAiSpeechFilter={setAiSpeechFilter}
+                onOpenChat={() => { setToolsOpen(false); setChatOpen(true); }}
+                fullScreenStyle={fullScreenStyle}
+                setFullScreenStyle={setFullScreenStyle}
+                onOptimizeStations={handleAiOptimization}
+                onRestartAudio={handleRestartAudio}
+                interfaceMode={interfaceMode}
+                setInterfaceMode={setInterfaceMode}
+                isShuffleEnabled={isShuffleEnabled}
+                setIsShuffleEnabled={setIsShuffleEnabled}
+            />
 
-                <ChatPanel 
-                    isOpen={chatOpen} 
-                    onClose={() => setChatOpen(false)} 
-                    language={language}
-                    onLanguageChange={setLanguage}
-                    currentUser={userProfile}
-                    onUpdateCurrentUser={handleProfileUpdate}
-                    isPlaying={isPlaying}
-                    onTogglePlay={togglePlay}
-                    onNextStation={handleNextStation}
-                    onPrevStation={handlePreviousStation}
-                    currentStation={currentStation || null}
-                    analyserNode={analyserRef.current}
-                    volume={volume}
-                    onVolumeChange={setVolume}
-                />
+            <ChatPanel 
+                isOpen={chatOpen} 
+                onClose={() => setChatOpen(false)} 
+                language={language}
+                onLanguageChange={setLanguage}
+                currentUser={userProfile}
+                onUpdateCurrentUser={handleProfileUpdate}
+                isPlaying={isPlaying}
+                onTogglePlay={togglePlay}
+                onNextStation={handleNextStation}
+                onPrevStation={handlePreviousStation}
+                currentStation={currentStation || null}
+                analyserNode={analyserRef.current}
+                volume={volume}
+                onVolumeChange={setVolume}
+            />
 
-                <TutorialOverlay isOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} language={language} />
-                <ManualModal isOpen={manualOpen} onClose={() => setManualOpen(false)} language={language} />
-                <DownloadAppModal isOpen={downloadModalOpen} onClose={() => setDownloadModalOpen(false)} language={language} installPrompt={installPrompt} />
-                <FeedbackModal isOpen={feedbackModalOpen} onClose={() => setFeedbackModalOpen(false)} language={language} />
-                <GitHubModal isOpen={githubModalOpen} onClose={() => setGithubModalOpen(false)} language={language} />
-            </Suspense>
+            <TutorialOverlay isOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} language={language} />
+            <ManualModal isOpen={manualOpen} onClose={() => setManualOpen(false)} language={language} />
+            <DownloadAppModal isOpen={downloadModalOpen} onClose={() => setDownloadModalOpen(false)} language={language} installPrompt={installPrompt} />
+            <FeedbackModal isOpen={feedbackModalOpen} onClose={() => setFeedbackModalOpen(false)} language={language} />
+            <GitHubModal isOpen={githubModalOpen} onClose={() => setGithubModalOpen(false)} language={language} />
         </div>
 
     </div>

@@ -19,6 +19,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const animationRef = useRef<number>(0);
   const starsRef = useRef<any[]>([]);
   const particlesRef = useRef<any[]>([]);
+  const ringsRef = useRef<any[]>([]);
   const lastVariantRef = useRef<string>(variant);
   
   // Reusable data array to prevent allocation per frame
@@ -61,6 +62,8 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     window.addEventListener('resize', resize);
 
     const renderFrame = () => {
+      if (!canvasRef.current) return;
+      
       const width = canvas.width / (canvas.width / canvas.getBoundingClientRect().width);
       const height = canvas.height / (canvas.height / canvas.getBoundingClientRect().height);
       
@@ -70,37 +73,66 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       }
 
       ctx.clearRect(0, 0, width, height);
-      // Applying filters via CSS is faster than canvas filters
       canvas.style.opacity = String(settings.opacity);
       canvas.style.filter = `brightness(${settings.brightness}%) contrast(${settings.contrast}%) saturate(${settings.saturation}%) hue-rotate(${settings.hue}deg)`;
 
       const bufferLength = analyserNode?.frequencyBinCount || 128;
       
-      // Resize buffer only if needed
       if (dataArrayRef.current.length !== bufferLength) {
           dataArrayRef.current = new Uint8Array(bufferLength);
       }
       const dataArray = dataArrayRef.current;
       
+      let hasData = false;
       if (analyserNode && isPlaying) {
         analyserNode.getByteFrequencyData(dataArray);
-      } else {
-        dataArray.fill(0);
+        // Check if we actually have data (CORS check)
+        for(let i=0; i<50; i++) { // Check first 50 bins
+            if (dataArray[i] > 0) {
+                hasData = true;
+                break;
+            }
+        }
       }
 
+      // SIMULATION FALLBACK: If playing but no data (likely CORS block), generate fake visual data
+      const animationSpeed = settings.speed;
+      const time = Date.now() / 1000 * animationSpeed;
+
+      if (isPlaying && !hasData) {
+          const bassSim = Math.abs(Math.sin(time * 4)) * 150 + 50;
+          const midSim = Math.abs(Math.cos(time * 2)) * 100 + 20;
+          const highSim = Math.abs(Math.sin(time * 8)) * 80;
+          
+          for(let i=0; i<bufferLength; i++) {
+              let val = 0;
+              if (i < bufferLength * 0.1) val = bassSim;
+              else if (i < bufferLength * 0.5) val = midSim;
+              else val = highSim;
+              
+              // Add noise
+              val += Math.random() * 30;
+              dataArray[i] = Math.min(255, val);
+          }
+      } else if (!isPlaying) {
+          dataArray.fill(0);
+      }
+
+      // Reset state if variant changed
       if (lastVariantRef.current !== variant) {
         starsRef.current = [];
         particlesRef.current = [];
+        ringsRef.current = [];
         lastVariantRef.current = variant;
       }
 
       const effectiveWidth = width * settings.scaleX;
       const offsetX = (width - effectiveWidth) / 2;
       const effectiveHeight = height * settings.scaleY;
-      const animationSpeed = settings.speed;
-      const time = Date.now() / 1000 * animationSpeed;
 
-      // Draw Logic Simplified for brevity but functionally identical
+      // ------------------------------------------------
+      // VISUALIZER: GALAXY / JOURNEY / STAGE DANCER
+      // ------------------------------------------------
       if (variant === 'galaxy' || variant === 'viz-journey' || variant === 'stage-dancer') {
           const starCount = isMobile ? 40 : (settings.performanceMode ? 60 : 100);
           
@@ -108,31 +140,133 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
              starsRef.current = Array.from({ length: starCount }, () => ({
                 x: Math.random() * width,
                 y: Math.random() * height,
-                size: Math.random() * 1.5 + 0.5,
-                phase: Math.random() * Math.PI * 2
+                size: Math.random() * 2 + 0.5,
+                phase: Math.random() * Math.PI * 2,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5
              }));
           }
 
-          const beat = dataArray[10] / 255; 
+          const beat = dataArray[4] / 255; // Bass kick
 
-          starsRef.current.forEach(s => {
+          starsRef.current.forEach((s, i) => {
+             // Movement
+             if (variant === 'viz-journey') {
+                 s.x -= (2 + beat * 5) * animationSpeed; // Starfield flight effect
+                 if (s.x < 0) { s.x = width; s.y = Math.random() * height; }
+             } else {
+                 s.x += s.vx * (1 + beat * 2);
+                 s.y += s.vy * (1 + beat * 2);
+                 // Wrap
+                 if (s.x < 0) s.x = width;
+                 if (s.x > width) s.x = 0;
+                 if (s.y < 0) s.y = height;
+                 if (s.y > height) s.y = 0;
+             }
+
              const flicker = Math.sin(time * 5 + s.phase) * 0.5 + 0.5;
-             const opacity = 0.3 + 0.7 * flicker + beat * 0.5;
+             const opacity = 0.2 + 0.8 * flicker + beat * 0.5;
+             const freqIndex = Math.floor((i / starCount) * (bufferLength / 2));
+             const freqVal = dataArray[freqIndex] / 255;
+             
              ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, opacity)})`;
+             
+             // Galaxy has colorful stars based on frequency
+             if (variant === 'galaxy') {
+                 const hue = (freqIndex * 5 + time * 20) % 360;
+                 ctx.fillStyle = `hsla(${hue}, 70%, 70%, ${opacity})`;
+             }
+
              ctx.beginPath();
-             ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+             const pulseSize = s.size * (1 + freqVal * 2);
+             ctx.arc(s.x, s.y, pulseSize, 0, Math.PI * 2);
              ctx.fill();
           });
       }
 
-      // Simple Bar Visualizer fallback/overlay logic
+      // ------------------------------------------------
+      // VISUALIZER: BUBBLES
+      // ------------------------------------------------
+      if (variant === 'bubbles') {
+          const bubbleCount = isMobile ? 20 : 40;
+          if (particlesRef.current.length < bubbleCount) {
+              for (let i = 0; i < bubbleCount - particlesRef.current.length; i++) {
+                  particlesRef.current.push({
+                      x: Math.random() * width,
+                      y: height + Math.random() * 100,
+                      radius: Math.random() * 10 + 5,
+                      speed: Math.random() * 2 + 1,
+                      freqIndex: Math.floor(Math.random() * (bufferLength / 2))
+                  });
+              }
+          }
+
+          particlesRef.current.forEach(p => {
+              const val = dataArray[p.freqIndex] / 255;
+              p.y -= p.speed * (1 + val * 2) * animationSpeed;
+              
+              // Reset if off top
+              if (p.y < -50) {
+                  p.y = height + 50;
+                  p.x = Math.random() * width;
+              }
+
+              const currentRadius = p.radius * (1 + val);
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, currentRadius, 0, Math.PI * 2);
+              ctx.strokeStyle = `hsla(${p.freqIndex * 2}, 70%, 60%, ${0.3 + val * 0.7})`;
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              ctx.fillStyle = `hsla(${p.freqIndex * 2}, 70%, 60%, ${0.1 + val * 0.2})`;
+              ctx.fill();
+          });
+      }
+
+      // ------------------------------------------------
+      // VISUALIZER: RINGS (Mixed Rings)
+      // ------------------------------------------------
+      if (variant === 'mixed-rings') {
+          const centerX = width / 2;
+          const centerY = height / 2;
+          const maxRadius = Math.min(width, height) * 0.4;
+          const ringCount = 10;
+
+          ctx.lineWidth = 4 * settings.scaleY;
+
+          for (let i = 0; i < ringCount; i++) {
+              // Grab distinct frequencies for each ring
+              const index = Math.floor((i / ringCount) * (bufferLength / 3)); 
+              const val = dataArray[index] / 255;
+              
+              const radius = (i + 1) * (maxRadius / ringCount) + (val * 40 * settings.scaleX);
+              const hue = (i * 30 + time * 50) % 360;
+              const alpha = 0.3 + val * 0.7;
+
+              ctx.beginPath();
+              ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+              ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${alpha})`;
+              ctx.stroke();
+              
+              // Optional fill for beat
+              if (i === 0 && val > 0.5) {
+                  ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.2)`;
+                  ctx.fill();
+              }
+          }
+      }
+
+      // ------------------------------------------------
+      // VISUALIZER: SEGMENTED & RAINBOW LINES (Bars)
+      // ------------------------------------------------
       if (variant === 'segmented' || variant === 'rainbow-lines') {
-        const barCount = isMobile ? 30 : (settings.performanceMode ? 60 : 100);
+        const barCount = isMobile ? 30 : (settings.performanceMode ? 64 : 128);
         const barWidth = effectiveWidth / barCount;
         
         for (let i = 0; i < barCount; i++) {
           const percent = i / barCount;
-          const index = Math.floor(percent * bufferLength * 0.8); // Focus on lower 80% freqs
+          // Use a logarithmic scale for better frequency distribution
+          // or simple linear mapping. Linear is usually enough for simple visuals.
+          const index = Math.floor(percent * (bufferLength / 2)); 
           const value = dataArray[index] / 255;
           const barH = value * effectiveHeight;
           const x = offsetX + i * barWidth;
@@ -142,13 +276,16 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
           
           if (variant === 'segmented') {
              const segH = 4;
-             const segs = Math.floor(barH / 5);
+             const spacing = 2;
+             const segs = Math.floor(barH / (segH + spacing));
              const cy = height / 2;
              for(let s=0; s<segs; s++) {
-                 ctx.fillRect(x, cy - s*5 - 4, barWidth-1, 4);
-                 ctx.fillRect(x, cy + s*5, barWidth-1, 4);
+                 const yOffset = s * (segH + spacing);
+                 ctx.fillRect(x, cy - yOffset - segH, barWidth - 1, segH);
+                 ctx.fillRect(x, cy + yOffset, barWidth - 1, segH);
              }
           } else {
+             // Rainbow Lines (Bottom aligned)
              ctx.fillRect(x, height - barH - (height - effectiveHeight)/2, barWidth - 1, barH);
           }
         }

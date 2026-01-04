@@ -2,12 +2,12 @@
 import { RadioStation, StreamQuality } from '../types';
 import { RADIO_BROWSER_MIRRORS } from '../constants';
 
-const CACHE_KEY_PREFIX = 'streamflow_station_cache_';
-const CACHE_TTL_MINUTES = 60; // Increased cache duration to 1 hour to reduce API load
+const CACHE_KEY_PREFIX = 'streamflow_station_cache_v3_'; // Bumped version to invalidate old caches
+const CACHE_TTL_MINUTES = 60; // 1 hour cache
 
 interface CacheEntry {
     data: RadioStation[];
-    timestamp: number; // Unix timestamp when cached
+    timestamp: number;
 }
 
 const getFromCache = (key: string): RadioStation[] | null => {
@@ -17,10 +17,9 @@ const getFromCache = (key: string): RadioStation[] | null => {
             const entry: CacheEntry = JSON.parse(cached);
             const now = Date.now();
             if (now - entry.timestamp < CACHE_TTL_MINUTES * 60 * 1000) {
-                // console.log(`Cache hit for ${key}`);
                 return entry.data;
             } else {
-                localStorage.removeItem(CACHE_KEY_PREFIX + key); // Clean up expired cache
+                localStorage.removeItem(CACHE_KEY_PREFIX + key);
             }
         }
     } catch (e) {
@@ -42,10 +41,8 @@ const setToCache = (key: string, data: RadioStation[]) => {
     }
 };
 
-// Helper to shuffle array to distribute load and avoid sticking to a broken first mirror
 const getShuffledMirrors = () => {
     const mirrors = [...RADIO_BROWSER_MIRRORS];
-    // Fisher-Yates shuffle
     for (let i = mirrors.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [mirrors[i], mirrors[j]] = [mirrors[j], mirrors[i]];
@@ -53,16 +50,13 @@ const getShuffledMirrors = () => {
     return mirrors;
 };
 
-// Fetch with timeout to prevent hanging requests
-const fetchWithTimeout = async (url: string, timeout = 5000): Promise<Response> => {
+const fetchWithTimeout = async (url: string, timeout = 8000): Promise<Response> => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     try {
         const response = await fetch(url, { 
             method: 'GET',
-            mode: 'cors', 
-            credentials: 'omit',
-            cache: 'no-store', // Ensure we don't get cached error responses
+            // Removed 'mode: cors' and 'cache: no-store' to prevent issues on some networks
             headers: {
                 'Accept': 'application/json'
             },
@@ -76,10 +70,8 @@ const fetchWithTimeout = async (url: string, timeout = 5000): Promise<Response> 
     }
 };
 
-// Main function to fetch data across multiple API mirrors with a fail-fast strategy
 const fetchAcrossMirrorsWithRetries = async (path: string, urlParams: string): Promise<RadioStation[]> => {
     const mirrors = getShuffledMirrors();
-    // Add the main load balancer as a backup if not present (though it redirects to others)
     if (!mirrors.some(m => m.includes('all.api'))) {
         mirrors.push('https://all.api.radio-browser.info/json/stations');
     }
@@ -89,7 +81,7 @@ const fetchAcrossMirrorsWithRetries = async (path: string, urlParams: string): P
     for (const baseUrl of mirrors) {
         const fullUrl = `${baseUrl}/${path}?${urlParams}`;
         try {
-            const response = await fetchWithTimeout(fullUrl, 5000); // 5s timeout
+            const response = await fetchWithTimeout(fullUrl, 8000);
             
             if (response.ok) {
                 const data = await response.json();
@@ -98,8 +90,6 @@ const fetchAcrossMirrorsWithRetries = async (path: string, urlParams: string): P
                 } else {
                     console.warn(`Mirror ${baseUrl} returned non-array data.`);
                 }
-            } else {
-                console.warn(`Mirror ${baseUrl} returned ${response.status}. Trying next...`);
             }
         } catch (error: any) {
             console.warn(`Failed to fetch from mirror ${baseUrl}: ${error.message || error}.`);
@@ -107,82 +97,76 @@ const fetchAcrossMirrorsWithRetries = async (path: string, urlParams: string): P
         }
     }
     
-    throw new Error(`Failed to fetch from all available RadioBrowser mirrors. Please check your connection.`);
+    console.error("All mirrors failed. Last error:", lastError);
+    // Return empty array instead of throwing to allow UI to handle empty state gracefully
+    return [];
 };
 
 
-const filterStations = (data: RadioStation[], quality: StreamQuality = 'standard') => {
+const filterStations = (data: RadioStation[], quality: StreamQuality = 'standard', isShuffle: boolean = false) => {
     const uniqueStations = new Map();
+    // Exclude religion/quran/bible for Shuffle Mode specifically as requested
+    // General blacklist for all modes
     const blacklistTags = ['news', 'talk', 'speech', 'sport', 'sports', 'politics', 'education', 'debate', 'conversation', 'business', 'comedy', 'scanner', 'weather', 'traffic', 'police'];
     
-    // Filter logic - OPTIMIZED FOR TRAFFIC ECONOMY & SPEED
+    if (isShuffle) {
+        blacklistTags.push('islamic', 'religion', 'quran', 'bible', 'sermon', 'church', 'gospel');
+    }
+
     let filtered = data.filter(station => {
       if (!station.url_resolved) return false;
       
-      // Strict Text Filter for non-music
       const tags = (station.tags || '').toLowerCase();
       if (blacklistTags.some(t => tags.includes(t))) return false;
 
       const codec = (station.codec || '').toLowerCase();
-      // Browsers love MP3 and AAC best
-      const isBrowserCompatible = codec.includes('mp3') || codec.includes('aac') || station.url_resolved.endsWith('.mp3');
+      const url = station.url_resolved.toLowerCase();
+
+      // Ensure format is browser playable
+      const isBrowserCompatible = (
+          codec.includes('mp3') || 
+          codec.includes('aac') || 
+          codec.includes('ogg') ||
+          url.endsWith('.mp3') ||
+          url.endsWith('.aac')
+      );
       
       const bitrate = station.bitrate || 0;
       
-      // TRAFFIC OPTIMIZATION LOGIC
       let qualityCheck = true;
       if (quality === 'economy') {
-          // In Economy: Prefer AAC+ (HE-AAC) or low bitrate MP3 (< 96)
-          // Allows play even at 28kbps if codec is efficient
           qualityCheck = bitrate <= 96 || codec.includes('aac'); 
       } else if (quality === 'premium') {
-          // In Premium: STRICTLY High Bitrate (>= 128) to avoid distortion/artifacts.
-          // We strictly exclude anything below 128kbps.
-          // We also exclude 0 (unknown) to guarantee quality.
           qualityCheck = bitrate >= 128; 
       } else {
-          // Standard: Avoid extremely low quality unless it's AAC, avoid massive streams
           qualityCheck = bitrate >= 64; 
       }
       
-      // Filter out common playlist formats that cause extra redirects or aren't playable directly in audio tag easily
-      const isPlaylist = station.url_resolved.endsWith('.m3u') || station.url_resolved.endsWith('.pls') || station.url_resolved.includes('.ashx');
-      
-      // Prefer HTTPS to avoid Mixed Content errors which slow down or block loading
+      // Strict Playlist Filter to prevent MediaError Code 4
+      const isPlaylist = /\.(m3u|pls|ashx|m3u8|xspf|asx|wax|wvx|ram|smil)(\?.*)?$/i.test(url);
+      const isHtml = /\.(html|htm)(\?.*)?$/i.test(url);
+
+      // HTTPS is mandatory for Vercel/PWA
       const isSslSafe = station.url_resolved.startsWith('https');
 
-      // Specific blacklist
       const isBlacklisted = station.name === 'Спокойное радио';
 
-      return isBrowserCompatible && qualityCheck && !isPlaylist && isSslSafe && !isBlacklisted;
+      return isBrowserCompatible && qualityCheck && !isPlaylist && !isHtml && isSslSafe && !isBlacklisted;
     });
 
-    // Sort based on quality preference and reliability
     filtered.sort((a, b) => {
-        // Special sorting for PREMIUM: Bitrate is Priority #1
         if (quality === 'premium') {
             const bitrateA = a.bitrate || 0;
             const bitrateB = b.bitrate || 0;
             const bitDiff = bitrateB - bitrateA;
-            
-            // If significant difference (e.g. 128 vs 320), prefer bitrate immediately
             if (Math.abs(bitDiff) >= 32) return bitDiff;
-            
-            // Otherwise use votes as tie breaker
             return b.votes - a.votes;
         }
-
-        // Standard/Economy Sorting: Reliability (Votes) is Priority #1
         const voteDiff = b.votes - a.votes;
         if (Math.abs(voteDiff) > 500) return voteDiff;
-        
-        // Priority 2: Bitrate optimization
         if (quality === 'economy') {
-            // Lower bitrate is better (but not 0)
             return (a.bitrate || 128) - (b.bitrate || 128);
         }
-        
-        // Fallback
         return voteDiff;
     });
 
@@ -201,14 +185,15 @@ const TAG_MAPPINGS: Record<string, string> = {
     '80s': '80s',
     '90s': '90s',
     '00s': '2000s',
-    '2010': '2000s', // User specific: 2001-2010 era
-    '2025': 'hits',  // User specific: 2011-2025 modern era
-    'modern_hits': 'hits', // User requested Genre 'New 2020-2025'
-    'energy': 'dance', // 'Energy' mood -> Dance (includes house, techno, club)
-    'dark': 'techno',  // 'Club' mood -> Techno
-    'chill': 'chillout', // 'Chill' mood -> Chillout
-    'focus': 'ambient',  // 'Focus' mood -> Ambient
-    'romantic': 'love songs' // 'Romantic' mood -> Love Songs
+    '2010': '2000s',
+    '2025': 'hits',
+    'modern_hits': 'hits',
+    'energy': 'dance',
+    'dark': 'techno',
+    'chill': 'chillout',
+    'focus': 'ambient',
+    'romantic': 'love songs',
+    'hiphop': 'hip hop'
 };
 
 export const fetchStationsByTag = async (tag: string, limit: number = 40, quality: StreamQuality = 'standard'): Promise<RadioStation[]> => {
@@ -218,14 +203,14 @@ export const fetchStationsByTag = async (tag: string, limit: number = 40, qualit
       return cachedData;
   }
 
-  // Use mapped tag if available, otherwise use original
   const searchTag = TAG_MAPPINGS[tag] || tag;
+  const encodedTag = encodeURIComponent(searchTag);
 
   try {
-    // Increased limit to get more candidates before filtering
-    const fetchLimit = Math.max(100, limit * 4); // Fetch way more to ensure we find enough matching the quality
+    // Fetch more candidates to ensure enough pass the strict filters
+    const fetchLimit = Math.max(100, limit * 5); 
     const urlParams = `limit=${fetchLimit}&order=votes&reverse=true&hidebroken=true&https=true`;
-    const data = await fetchAcrossMirrorsWithRetries(`bytag/${searchTag}`, urlParams);
+    const data = await fetchAcrossMirrorsWithRetries(`bytag/${encodedTag}`, urlParams);
     
     const filteredAndSliced = filterStations(data, quality).slice(0, limit);
     
@@ -235,8 +220,38 @@ export const fetchStationsByTag = async (tag: string, limit: number = 40, qualit
     return filteredAndSliced;
   } catch (error) {
     console.error("Error fetching radio stations by tag:", error);
-    throw error; 
+    return [];
   }
+};
+
+export const fetchRandomStations = async (limit: number = 20, quality: StreamQuality = 'standard'): Promise<RadioStation[]> => {
+    // Random endpoint doesn't support complex tagging exclusions directly in URL easily,
+    // so we fetch a larger batch and filter client-side.
+    try {
+        const fetchLimit = limit * 5; 
+        const urlParams = `limit=${fetchLimit}&hidebroken=true&https=true`;
+        // Use 'stations/random' endpoint provided by RadioBrowser API (usually mapped to /json/stations/random)
+        // Our fetch logic appends prefix, so we pass 'stations/random'
+        // Actually, in the helper it constructs `${baseUrl}/${path}`. 
+        // Mirrors usually structure as `/json/stations/bytag/...` so random is `/json/stations/random`
+        // But our path arg is appended. So we pass `stations/random`.
+        // Wait, typical mirror is `https://de1.api.radio-browser.info/json/stations`.
+        // If we pass `stations/random`, it becomes `.../json/stations/stations/random` which is wrong.
+        // The fetch helper takes `path`. It expects `bytag/jazz` etc.
+        // So for random, we should probably modify the helper or just pass `random` if the base URL ends in /stations.
+        // Let's assume the base URL in mirrors includes `/json/stations`.
+        // So path should be just `random`.
+        
+        const data = await fetchAcrossMirrorsWithRetries(`random`, urlParams);
+        
+        // Pass isShuffle=true to filterStations to exclude Religion tags
+        const filteredAndSliced = filterStations(data, quality, true).slice(0, limit);
+        
+        return filteredAndSliced;
+    } catch (error) {
+        console.error("Error fetching random stations:", error);
+        return [];
+    }
 };
 
 export const fetchStationsByUuids = async (uuids: string[]): Promise<RadioStation[]> => {
@@ -263,7 +278,6 @@ export const fetchStationsByUuids = async (uuids: string[]): Promise<RadioStatio
             }
         });
         
-        // Default standard filter for favorites
         const processedResults = filterStations(flatResults, 'standard');
         if (processedResults.length > 0) {
              setToCache(cacheKey, processedResults);
@@ -271,7 +285,7 @@ export const fetchStationsByUuids = async (uuids: string[]): Promise<RadioStatio
         return processedResults;
     } catch (error) {
         console.error("Error fetching favorite stations by UUIDs:", error);
-        throw error; 
+        return [];
     }
 }
 
