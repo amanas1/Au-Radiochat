@@ -12,7 +12,7 @@ import { fetchStationsByTag, fetchRandomStations } from './services/radioService
 import { detectSpeechFromSpectrum, isAiAvailable, optimizeStationList } from './services/geminiService';
 import { 
   MusicNoteIcon, VolumeIcon, PreviousIcon, NextIcon, PlayIcon, PauseIcon, 
-  LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, BellIcon, SparklesIcon, MaximizeIcon, XMarkIcon,
+  LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, BellIcon, MaximizeIcon, XMarkIcon,
   MinusIcon, PlusIcon
 } from './components/Icons';
 
@@ -815,9 +815,6 @@ const App: React.FC = () => {
 
                                     {!isFocus && (
                                         <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
-                                                <button onClick={() => setFullScreenStyle('visualizer')} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Visualizer Mode">
-                                                    <SparklesIcon className="w-5 h-5" /> 
-                                                </button>
                                                 <button onClick={() => { setInitialToolsTab('eq'); setToolsOpen(true); }} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Equalizer">
                                                     <AdjustmentsIcon className="w-5 h-5" />
                                                 </button>
