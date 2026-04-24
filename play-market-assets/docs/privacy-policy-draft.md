@@ -29,4 +29,8 @@ The app is not intended for children under the minimum age required by local law
 ## Contact
 Support email: `amanas5535332@gmail.com`
 
-Before publication, place this policy on a public URL and align it exactly with actual app behavior and the Play Console Data Safety form.
+Public URL:
+
+`https://2026-04-24-https-github-com-amanas1.vercel.app/privacy-policy.html`
+
+Before publication, align this policy exactly with actual app behavior and the Play Console Data Safety form.

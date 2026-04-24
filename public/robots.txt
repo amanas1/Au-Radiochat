@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://your-domain.com/sitemap.xml
+Sitemap: https://2026-04-24-https-github-com-amanas1.vercel.app/sitemap.xml

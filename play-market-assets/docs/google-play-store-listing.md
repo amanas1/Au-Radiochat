@@ -59,3 +59,7 @@ Au Radio Chat is built for listeners who want world radio, internet radio, live 
 - Privacy policy URL
 - Website URL
 - Contact address
+
+## Ready-To-Use Public URLs
+- Website: `https://2026-04-24-https-github-com-amanas1.vercel.app/`
+- Privacy Policy: `https://2026-04-24-https-github-com-amanas1.vercel.app/privacy-policy.html`
