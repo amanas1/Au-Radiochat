@@ -1,22 +1,24 @@
 
 {
   "name": "Au-Radiochat",
-  "short_name": "Au-Radiochat",
+  "short_name": "Au Radio",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#070b14",
-  "theme_color": "#bc6ff1",
-  "description": "Global Radio Streaming Engine",
+  "theme_color": "#0b1220",
+  "description": "Global radio streaming app with live stations, equalizer, sleep timer, and immersive visualizers.",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3659/3659784.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "src": "/play-market-assets/graphics/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3659/3659784.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/play-market-assets/graphics/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }

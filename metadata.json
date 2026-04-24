@@ -1,6 +1,6 @@
 {
   "name": "Au-Radiochat",
-  "description": "A pure global radio streaming application.",
+  "description": "A global radio streaming app with live stations, discovery filters, equalizer, sleep timer, ambient sound mixer, and immersive visualizers.",
   "requestFramePermissions": [
     "microphone",
     "camera"

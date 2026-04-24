@@ -1,0 +1,31 @@
+<svg width="1024" height="500" viewBox="0 0 1024 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="500" rx="32" fill="url(#bg)"/>
+  <circle cx="170" cy="90" r="180" fill="#38BDF8" opacity="0.12"/>
+  <circle cx="856" cy="418" r="210" fill="#A855F7" opacity="0.14"/>
+  <rect x="590" y="54" width="230" height="392" rx="38" fill="#020617" stroke="rgba(255,255,255,0.14)" stroke-width="10"/>
+  <rect x="611" y="94" width="188" height="252" rx="24" fill="url(#screen)"/>
+  <rect x="632" y="123" width="112" height="12" rx="6" fill="#BFDBFE" opacity="0.8"/>
+  <rect x="632" y="154" width="145" height="10" rx="5" fill="#E2E8F0" opacity="0.6"/>
+  <rect x="632" y="188" width="147" height="118" rx="22" fill="#0F172A" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+  <path d="M652 268C678 220 711 219 733 253C754 284 775 287 791 247" stroke="#38BDF8" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="680" cy="233" r="10" fill="#38BDF8"/>
+  <circle cx="744" cy="244" r="10" fill="#A855F7"/>
+  <rect x="632" y="332" width="68" height="22" rx="11" fill="#38BDF8"/>
+  <rect x="707" y="332" width="80" height="22" rx="11" fill="#1E293B"/>
+  <rect x="621" y="374" width="177" height="18" rx="9" fill="#1E293B"/>
+  <text x="90" y="188" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="64" font-weight="700">Au Radio Chat</text>
+  <text x="90" y="244" fill="#BFDBFE" font-family="Arial, sans-serif" font-size="28">Global radio streaming with immersive listening tools</text>
+  <text x="90" y="322" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="26" font-weight="700">Listen live. Discover faster. Stay longer.</text>
+  <text x="90" y="372" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="24">World stations • Sleep timer • EQ • Ambient mixer • Visualizers</text>
+  <defs>
+    <linearGradient id="bg" x1="49" y1="28" x2="972" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#020617"/>
+      <stop offset="0.45" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="611" y1="94" x2="799" y2="346" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#082F49"/>
+      <stop offset="1" stop-color="#312E81"/>
+    </linearGradient>
+  </defs>
+</svg>

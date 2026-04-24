@@ -1,0 +1,29 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1080" height="1920" fill="url(#bg)"/>
+  <text x="84" y="180" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="86" font-weight="700">Live radio worldwide</text>
+  <text x="84" y="254" fill="#BFDBFE" font-family="Arial, sans-serif" font-size="40">Tune in to stations across countries in seconds</text>
+  <rect x="120" y="356" width="840" height="1320" rx="56" fill="#020617" stroke="rgba(255,255,255,0.12)" stroke-width="8"/>
+  <rect x="174" y="452" width="732" height="248" rx="32" fill="url(#card)"/>
+  <text x="218" y="536" fill="#E0F2FE" font-family="Arial, sans-serif" font-size="28">NOW PLAYING</text>
+  <text x="218" y="604" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="54" font-weight="700">Jazz FM London</text>
+  <text x="218" y="654" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="32">Smooth jazz • United Kingdom</text>
+  <circle cx="790" cy="580" r="72" fill="#38BDF8"/>
+  <path d="M774 542L824 580L774 618V542Z" fill="#082F49"/>
+  <rect x="174" y="748" width="350" height="150" rx="28" fill="#111827"/>
+  <rect x="556" y="748" width="350" height="150" rx="28" fill="#111827"/>
+  <rect x="174" y="932" width="732" height="112" rx="24" fill="#111827"/>
+  <rect x="174" y="1080" width="732" height="112" rx="24" fill="#111827"/>
+  <rect x="174" y="1228" width="732" height="112" rx="24" fill="#111827"/>
+  <text x="220" y="832" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="34" font-weight="700">World stations</text>
+  <text x="602" y="832" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="34" font-weight="700">Fast switching</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1080" y2="1920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#020617"/>
+      <stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+    <linearGradient id="card" x1="174" y1="452" x2="906" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#312E81"/>
+    </linearGradient>
+  </defs>
+</svg>

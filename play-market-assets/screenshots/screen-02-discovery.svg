@@ -1,0 +1,24 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1080" height="1920" fill="url(#bg)"/>
+  <text x="84" y="180" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="82" font-weight="700">Find by mood and genre</text>
+  <text x="84" y="254" fill="#BFDBFE" font-family="Arial, sans-serif" font-size="40">Jazz, chill, focus, pop, club, and more</text>
+  <rect x="120" y="356" width="840" height="1320" rx="56" fill="#020617" stroke="rgba(255,255,255,0.12)" stroke-width="8"/>
+  <rect x="170" y="430" width="190" height="88" rx="24" fill="#38BDF8"/>
+  <rect x="380" y="430" width="210" height="88" rx="24" fill="#1D4ED8"/>
+  <rect x="610" y="430" width="250" height="88" rx="24" fill="#A855F7"/>
+  <rect x="170" y="560" width="690" height="190" rx="30" fill="#111827"/>
+  <rect x="170" y="792" width="690" height="190" rx="30" fill="#111827"/>
+  <rect x="170" y="1024" width="690" height="190" rx="30" fill="#111827"/>
+  <text x="214" y="656" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="42" font-weight="700">Chill radio</text>
+  <text x="214" y="708" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="30">Relaxed stations for work, home, and late evenings</text>
+  <text x="214" y="888" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="42" font-weight="700">Focus mix</text>
+  <text x="214" y="940" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="30">Background streams for study and productivity</text>
+  <text x="214" y="1120" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="42" font-weight="700">Modern hits</text>
+  <text x="214" y="1172" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="30">Fresh stations and trending global music</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1080" y2="1920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+</svg>

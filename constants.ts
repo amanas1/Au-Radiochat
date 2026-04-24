@@ -172,14 +172,14 @@ export const ACHIEVEMENTS_LIST: Achievement[] = [
 
 export const NEWS_MESSAGES: Record<string, string[]> = {
     en: [
-        "Welcome to StreamFlow V2.0! Enjoy pure radio. • Administration",
+        "Welcome to Au-Radiochat V2.0! Enjoy pure radio. • Administration",
         "Tip: Use the Tools panel (bottom right) to set a Sleep Timer or Alarm.",
         "Try the 8D Audio mode in the Ambience tab (Headphones recommended).",
         "Join the Global Chat to find friends from around the world!",
         "Customize your experience: Visualizers, EQ, and Themes are available in Settings."
     ],
     ru: [
-        "Добро пожаловать в StreamFlow V2.0! Наслаждайтесь эфиром. • Администрация",
+        "Добро пожаловать в Au-Radiochat V2.0! Наслаждайтесь эфиром. • Администрация",
         "Совет: В панели инструментов можно настроить Таймер сна и Будильник.",
         "Попробуйте режим 8D звука во вкладке Атмосфера (рекомендуются наушники).",
         "Заходите в Глобальный чат для поиска друзей по всему миру!",
@@ -216,9 +216,9 @@ export const TRANSLATIONS: Record<string, any> = {
         visualizer: 'Visualizer', eq: 'Equalizer', look: 'Appearance', ambience: 'Ambience', fx: 'Effects FX', sleep: 'Sleep Timer',
         vizGalaxy: 'Galaxy', resetFlat: 'Reset Flat', sleepTimer: 'Sleep Timer', turnOffTimer: 'Turn Off', alarm: 'Alarm', on: 'On', off: 'Off', alarm_set: 'Alarm set to', cardColor: 'Card Tint', developerNews: 'Developer News', interfaceLanguage: 'Language',
         findFriends: 'Find Friends', completeProfile: 'Complete Profile', displayName: 'Display Name', gender: 'Gender', male: 'Male', female: 'Female', other: 'Other', age: 'Age', country: 'Country', city: 'City', saveAndEnter: 'Save & Enter', login: 'Login', any: 'Any', search: 'Search', knock: 'Knock',
-        tutorialWelcome: 'Welcome to StreamFlow', manualSection2: 'Radio Stream: The Core', manualSection3: 'Sleep Timer: Rest Easy', manualSection5: 'Ambience: Create Atmosphere', manualSection4: 'Chat: Connect Safely',
+        tutorialWelcome: 'Welcome to Au-Radiochat', manualSection2: 'Radio Stream: The Core', manualSection3: 'Sleep Timer: Rest Easy', manualSection5: 'Ambience: Create Atmosphere', manualSection4: 'Chat: Connect Safely',
         tutorialStep1: 'Choose your vibe from Genres, Eras, or Moods.', tutorialStep2: 'Tap any station card to start listening immediately.', tutorialStep3: 'Set a sleep timer or alarm here.', tutorialStep4: 'Mix ambient sounds like rain or fire.', tutorialStep5: 'Chat securely with others listening now.',
-        next: 'Next', gotIt: 'Got it', manualTitle: 'User Manual', manualIntro: 'Welcome to StreamFlow, your ultimate radio experience.', whoAreYou: 'Who are you?', createProfile: 'Create your profile to connect.', uploadPhoto: 'Upload Photo', saveProfile: 'Save Profile', joinCommunity: 'Join Community',
+        next: 'Next', gotIt: 'Got it', manualTitle: 'User Manual', manualIntro: 'Welcome to Au-Radiochat, your ultimate radio experience.', whoAreYou: 'Who are you?', createProfile: 'Create your profile to connect.', uploadPhoto: 'Upload Photo', saveProfile: 'Save Profile', joinCommunity: 'Join Community',
         downloader: 'Music Downloader', rain: 'Rain', spatialAudio: '8D Audio', spatialHint: 'Use headphones for best effect', editProfile: 'Edit Profile',
         vizStageDancer: 'Stage Dancer', vizTrioDancers: 'Trio Dancers', vizJourney: 'Journey', vizDigital: 'Digital', vizNeon: 'Neon', vizRings: 'Rings', vizBubbles: 'Bubbles',
         spatialMixer: 'Spatial Mixer',
@@ -242,7 +242,7 @@ export const TRANSLATIONS: Record<string, any> = {
         sendSuccess: "Message sent!",
         manualTooltip: "User Manual",
         showWhere: "Show location",
-        helpImprove: "Help us improve StreamFlow.",
+        helpImprove: "Help us improve Au-Radiochat.",
         interfaceMode: "Interface Mode"
     },
     ru: {
@@ -253,7 +253,7 @@ export const TRANSLATIONS: Record<string, any> = {
         findFriends: 'Поиск людей', completeProfile: 'Ваш профиль', displayName: 'Ваше имя', gender: 'Пол', male: 'Мужской', female: 'Женский', other: 'Другой', age: 'Возраст', country: 'Страна', city: 'Город', saveAndEnter: 'Войти', login: 'Логин', any: 'Неважно', search: 'Найти', knock: 'Постучаться',
         tutorialWelcome: 'Добро пожаловать', manualSection2: 'Радио: Сердце Эфира', manualSection3: 'Таймер Сна: Отдыхайте', manualSection5: 'Атмосфера: Создайте Уют', manualSection4: 'Чат: Общайтесь Безопасно',
         tutorialStep1: 'Выберите настроение, жанр или эпоху.', tutorialStep2: 'Нажмите на любую станцию, чтобы начать.', tutorialStep3: 'Здесь можно поставить таймер или будильник.', tutorialStep4: 'Смешивайте звуки дождя или огня.', tutorialStep5: 'Безопасный чат с другими слушателями.',
-        next: 'Далее', gotIt: 'Понятно', manualTitle: 'Руководство', manualIntro: 'Добро пожаловать в StreamFlow — ваш идеальный радио-опыт.', whoAreYou: 'Кто вы?', createProfile: 'Создайте профиль для общения.', uploadPhoto: 'Загрузить фото', saveProfile: 'Сохранить', joinCommunity: 'Присоединиться',
+        next: 'Далее', gotIt: 'Понятно', manualTitle: 'Руководство', manualIntro: 'Добро пожаловать в Au-Radiochat — ваш идеальный радио-опыт.', whoAreYou: 'Кто вы?', createProfile: 'Создайте профиль для общения.', uploadPhoto: 'Загрузить фото', saveProfile: 'Сохранить', joinCommunity: 'Присоединиться',
         downloader: 'Загрузчик Музыки', rain: 'Дождь', spatialAudio: '8D Звук', spatialHint: 'В наушниках лучше', editProfile: 'Ред. Профиль',
         vizStageDancer: 'Танцор', vizTrioDancers: 'Трио', vizJourney: 'Полет', vizDigital: 'Цифра', vizNeon: 'Неон', vizRings: 'Кольца', vizBubbles: 'Пузыри',
         spatialMixer: 'Звуковая Сцена',
@@ -277,7 +277,7 @@ export const TRANSLATIONS: Record<string, any> = {
         sendSuccess: "Сообщение отправлено!",
         manualTooltip: "Мануал",
         showWhere: "Показать где",
-        helpImprove: "Помогите нам улучшить StreamFlow.",
+        helpImprove: "Помогите нам улучшить Au-Radiochat.",
         interfaceMode: "Режим Интерфейса"
     }
 };
