@@ -32,15 +32,15 @@ const setStorage = (key: string, data: any) => {
 // --- SERVICE METHODS ---
 
 export const chatService = {
-    // 1. AUTHENTICATION (Simulated Google OAuth)
+    // 1. QUICK ACCESS (local demo profile for the optional chat area)
     signInWithGoogle: async (): Promise<Partial<UserProfile>> => {
         return new Promise((resolve) => {
             setTimeout(() => {
                 const mockGoogleUser = {
-                    id: 'google_user_' + Date.now(),
-                    name: 'StreamUser',
-                    avatar: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
-                    email: 'user@gmail.com',
+                    id: 'chat_user_' + Date.now(),
+                    name: 'Radio User',
+                    avatar: 'https://api.dicebear.com/9.x/thumbs/svg?seed=auradiochat-user',
+                    email: 'user@auradiochat.app',
                     isAuthenticated: true,
                     age: 0,
                     country: '',
@@ -49,7 +49,7 @@ export const chatService = {
                     status: 'online' as const,
                     safetyLevel: 'green' as const,
                     blockedUsers: [],
-                    bio: 'Verified via Google',
+                    bio: 'Quick chat profile',
                     hasAgreedToRules: false,
                     filters: { minAge: 18, maxAge: 99, countries: [], languages: [], genders: ['any'], soundEnabled: true }
                 };
