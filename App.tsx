@@ -107,19 +107,19 @@ const App: React.FC = () => {
   const [initialToolsTab, setInitialToolsTab] = useState<'viz' | 'eq' | 'look' | 'ambience' | 'fx' | 'timer' | 'settings'>('settings');
   
   // Settings & Preferences
-  const [theme, setTheme] = useState<ThemeName>('default');
+  const [theme, setTheme] = useState<ThemeName>('volcano');
   const [baseTheme, setBaseTheme] = useState<BaseTheme>('dark');
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>('ru');
   const [vizVariant, setVizVariant] = useState<VisualizerVariant>('galaxy');
   const [vizSettings, setVizSettings] = useState<VisualizerSettings>({
-    scaleX: 1, scaleY: 1, brightness: 100, contrast: 100, saturation: 100, hue: 0, opacity: 1, speed: 1, autoIdle: true, performanceMode: false, expandLastRing: false
-  } as VisualizerSettings & { expandLastRing?: boolean });
+    scaleX: 1, scaleY: 1.2, brightness: 160, contrast: 100, saturation: 100, hue: 0, opacity: 1, speed: 0.5, autoIdle: true, performanceMode: false, showPlanets: false, expandLastRing: false
+  });
   const [ambience, setAmbience] = useState<AmbienceState>({
     rainVolume: 0, rainVariant: 'soft', fireVolume: 0, cityVolume: 0, vinylVolume: 0, is8DEnabled: false, spatialSpeed: 1
   });
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
   const [alarm, setAlarm] = useState<AlarmConfig>({ enabled: false, time: '08:00', days: [] });
-  const [eqGains, setEqGains] = useState<number[]>(new Array(10).fill(0));
+  const [eqGains, setEqGains] = useState<number[]>([2, 1, 0, -1, -2, -1, 0, 1, 1, 2]);
   const [fxSettings, setFxSettings] = useState<FxSettings>({ reverb: 0, speed: 1.0 });
   const [streamQuality, setStreamQuality] = useState<StreamQuality>('standard');
   const [idleModeEnabled, setIdleModeEnabled] = useState(false);
@@ -739,6 +739,57 @@ const App: React.FC = () => {
             />
         </div>
 
+        {vizSettings.showPlanets && (
+            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden mix-blend-screen select-none">
+                {/* Mercury */}
+                <div className="absolute top-[15%] left-[12%] w-6 h-6 rounded-full bg-gradient-to-br from-gray-300 via-gray-500 to-gray-700 opacity-60 blur-[1px] animate-[planet-float_18s_linear_infinite]"></div>
+                
+                {/* Venus */}
+                <div className="absolute top-[55%] left-[8%] w-12 h-12 rounded-full bg-gradient-to-br from-orange-200 via-yellow-500 to-orange-700 opacity-50 blur-[2px] animate-[planet-float_24s_linear_infinite_reverse]"></div>
+                
+                {/* Earth */}
+                <div className="absolute top-[12%] right-[18%] w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 via-green-400 to-blue-800 opacity-50 blur-[2px] animate-[planet-float_32s_linear_infinite]">
+                    <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.4),transparent)]"></div>
+                </div>
+                
+                {/* Mars */}
+                <div className="absolute bottom-[28%] left-[22%] w-10 h-10 rounded-full bg-gradient-to-br from-red-400 via-red-600 to-red-950 opacity-60 blur-[1px] animate-[planet-float_20s_linear_infinite]"></div>
+                
+                {/* Jupiter */}
+                <div className="absolute top-[38%] right-[12%] w-32 h-32 rounded-full bg-gradient-to-br from-orange-200 via-yellow-700 to-orange-900 opacity-40 blur-[3px] animate-[planet-float_45s_linear_infinite]">
+                    <div className="absolute inset-0 opacity-20 bg-[repeating-linear-gradient(transparent,transparent_8px,rgba(0,0,0,0.3)_8px,rgba(0,0,0,0.3)_16px)] rounded-full"></div>
+                </div>
+                
+                {/* Saturn */}
+                <div className="absolute bottom-[12%] right-[28%] w-28 h-28 flex items-center justify-center animate-[planet-float_38s_linear_infinite_reverse]">
+                    {/* Back Ring */}
+                    <div className="absolute w-[220%] h-[220%] rounded-full scale-y-[0.25] rotate-[-20deg] opacity-40"
+                         style={{ 
+                             background: 'radial-gradient(circle, transparent 40%, #e2c07d 41%, #c5a35d 50%, #9a7d44 51%, #c5a35d 65%, transparent 66%)',
+                             clipPath: 'inset(0 0 50% 0)'
+                         }}>
+                    </div>
+                    
+                    {/* Planet Body */}
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-[#f4e4bc] via-[#d2b48c] to-[#8b7355] opacity-90 shadow-[inset_-15px_-15px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(210,180,140,0.3)] border border-white/5"></div>
+                    
+                    {/* Front Ring */}
+                    <div className="absolute w-[220%] h-[220%] rounded-full scale-y-[0.25] rotate-[-20deg] opacity-40"
+                         style={{ 
+                             background: 'radial-gradient(circle, transparent 40%, #e2c07d 41%, #c5a35d 50%, #9a7d44 51%, #c5a35d 65%, transparent 66%)',
+                             clipPath: 'inset(50% 0 0 0)'
+                         }}>
+                    </div>
+                </div>
+                
+                {/* Uranus */}
+                <div className="absolute top-[75%] right-[8%] w-18 h-18 rounded-full bg-gradient-to-br from-cyan-100 via-cyan-400 to-blue-400 opacity-40 blur-[3px] animate-[planet-float_55s_linear_infinite]"></div>
+                
+                {/* Neptune */}
+                <div className="absolute bottom-[22%] left-[6%] w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 via-blue-700 to-blue-950 opacity-40 blur-[3px] animate-[planet-float_62s_linear_infinite_reverse]"></div>
+            </div>
+        )}
+
         <MusicStorm analyserNode={analyserRef.current} isPlaying={isPlaying && ambience.rainVolume > 0} />
         
         <div className={`relative z-10 flex flex-col h-full transition-opacity duration-1000 ease-in-out ${uiVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
@@ -882,7 +933,7 @@ const App: React.FC = () => {
                                             <button onClick={() => setVolume(v => v === 0 ? 0.5 : 0)} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors shrink-0">
                                                 <VolumeIcon className="w-4 h-4 md:w-5 md:h-5" />
                                             </button>
-                                            <div className="h-1 bg-[var(--text-muted)]/20 rounded-full flex-1 min-w-[20px] max-w-[80px] md:max-w-[100px] relative group cursor-pointer mr-1 md:mr-2">
+                                            <div className="h-1 bg-[var(--text-muted)]/20 rounded-full flex-1 min-w-[20px] max-w-[80px] md:max-w-[100px] relative group cursor-pointer">
                                                     <div className="absolute inset-0 bg-[var(--text-base)] origin-left rounded-full transition-all" style={{ width: `${volume * 100}%` }}></div>
                                                     <input 
                                                         type="range" min="0" max="1" step="0.01" 
@@ -892,7 +943,7 @@ const App: React.FC = () => {
                                             </div>
                                             <button 
                                                 onClick={() => toggleFavorite(currentStation)} 
-                                                className={`p-1.5 md:p-2 transition-all hover:scale-125 active:scale-90 shrink-0 mr-3 md:mr-6 ${isFavorite(currentStation) ? 'text-rose-500' : 'text-[var(--text-muted)] hover:text-rose-400'}`}
+                                                className={`p-1.5 md:p-2 transition-all hover:scale-125 active:scale-90 shrink-0 mr-8 md:mr-14 ${isFavorite(currentStation) ? 'text-rose-500' : 'text-[var(--text-muted)] hover:text-rose-400'}`}
                                             >
                                                 <HeartIcon className="w-4 h-4 md:w-6 md:h-6" filled={isFavorite(currentStation)} />
                                             </button>

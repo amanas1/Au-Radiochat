@@ -366,6 +366,23 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${vizSettings.autoIdle ? 'left-7' : 'left-1'}`}></div>
                             </button>
                         </div>
+                        
+                        <div className="h-px bg-white/5 my-2"></div>
+                        
+                        {/* EXTENDED EFFECTS */}
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{language === 'ru' ? 'Планеты' : 'Planets'}</label>
+                            <button onClick={() => setVizSettings({...vizSettings, showPlanets: !vizSettings.showPlanets})} className={`w-12 h-6 rounded-full relative transition-colors ${vizSettings.showPlanets ? 'bg-secondary' : 'bg-slate-700'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${vizSettings.showPlanets ? 'left-7' : 'left-1'}`}></div>
+                            </button>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{language === 'ru' ? 'Расширение кольца' : 'Expand Ring'}</label>
+                            <button onClick={() => setVizSettings({...vizSettings, expandLastRing: !vizSettings.expandLastRing})} className={`w-12 h-6 rounded-full relative transition-colors ${vizSettings.expandLastRing ? 'bg-secondary' : 'bg-slate-700'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${vizSettings.expandLastRing ? 'left-7' : 'left-1'}`}></div>
+                            </button>
+                        </div>
                     </div>
                 </div>
              )}

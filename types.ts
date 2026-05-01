@@ -39,6 +39,8 @@ export interface VisualizerSettings {
   speed: number;
   autoIdle: boolean;
   performanceMode: boolean;
+  showPlanets?: boolean;
+  expandLastRing?: boolean;
   danceArmIntensity?: number;
   danceLegIntensity?: number;
   danceHeadIntensity?: number;
