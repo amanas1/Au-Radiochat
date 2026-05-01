@@ -1,268 +1,148 @@
-
 import React, { useEffect, useRef } from 'react';
 
 interface CardVisualizerProps {
   analyserNode: AnalyserNode | null;
   isPlaying: boolean;
   color?: string;
+  expandLastRing?: boolean;
 }
 
-const CardVisualizer: React.FC<CardVisualizerProps> = ({ analyserNode, isPlaying, color = '#bc6ff1' }) => {
+const RING_COUNT = 18;
+
+const smoothstep = (edge0: number, edge1: number, value: number) => {
+  const x = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return x * x * (3 - 2 * x);
+};
+
+const CardVisualizer: React.FC<CardVisualizerProps> = ({ analyserNode, isPlaying, color = '#bc6ff1', expandLastRing = true }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const resize = () => {
-        if(canvas.parentElement) {
-            canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = canvas.parentElement.clientHeight;
-        }
+      if (!canvas.parentElement) return;
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
     };
+
     resize();
     window.addEventListener('resize', resize);
 
     const render = () => {
-        if (!ctx || !canvas) return;
-        const w = canvas.width;
-        const h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const maxRadius = Math.min(width, height) * 0.22;
+      const burstRadius = Math.min(width, height) * 0.58;
+      const baseRadius = Math.min(width, height) * 0.035;
+      const time = performance.now() * 0.001;
+      const resolvedColor = color.startsWith('var(')
+        ? getComputedStyle(canvas).getPropertyValue('--color-primary').trim() || '#bc6ff1'
+        : color;
+      const safeColor = resolvedColor.startsWith('var(') ? '#bc6ff1' : resolvedColor;
 
-        // Responsive Scaling
-        const minDim = Math.min(w, h);
-        const scale = minDim / 200; 
-        const cx = w / 2;
-        const cy = h / 2 + (20 * scale); // Shift down slightly to center the figure
+      ctx.clearRect(0, 0, width, height);
 
-        // Audio Data Processing
-        let bufferLength = 32;
-        let dataArray = new Uint8Array(bufferLength);
-        let bass = 0, mid = 0, high = 0;
+      let bands = new Array<number>(RING_COUNT).fill(0);
 
-        if (analyserNode && isPlaying) {
-            bufferLength = analyserNode.frequencyBinCount;
-            const fullData = new Uint8Array(bufferLength);
-            analyserNode.getByteFrequencyData(fullData);
-            
-            // Calculate bands
-            const bassEnd = Math.floor(bufferLength * 0.1);
-            const midEnd = Math.floor(bufferLength * 0.4);
-            
-            let bSum = 0; for(let i=0; i<bassEnd; i++) bSum += fullData[i];
-            bass = (bSum / bassEnd) / 255; // 0.0 - 1.0
+      if (analyserNode && isPlaying) {
+        const freqData = new Uint8Array(analyserNode.frequencyBinCount);
+        analyserNode.getByteFrequencyData(freqData);
 
-            let mSum = 0; for(let i=bassEnd; i<midEnd; i++) mSum += fullData[i];
-            mid = (mSum / (midEnd - bassEnd)) / 255;
+        bands = bands.map((_, i) => {
+          const start = Math.floor((i / RING_COUNT) * (freqData.length * 0.55));
+          const end = Math.max(start + 1, Math.floor(((i + 1) / RING_COUNT) * (freqData.length * 0.55)));
+          let sum = 0;
+          for (let j = start; j < end; j++) sum += freqData[j];
+          return (sum / (end - start)) / 255;
+        });
+      } else {
+        bands = bands.map((_, i) => {
+          const wave = Math.sin(time * 2.2 + i * 0.45);
+          const pulse = Math.cos(time * 1.7 + i * 0.35);
+          return isPlaying ? 0.2 + (wave + 1) * 0.18 + (pulse + 1) * 0.08 : 0.05 + (wave + 1) * 0.03;
+        });
+      }
 
-            let hSum = 0; for(let i=midEnd; i<bufferLength; i++) hSum += fullData[i];
-            high = (hSum / (bufferLength - midEnd)) / 255;
-        } else if (isPlaying) {
-            // Simulated audio if no analyser (e.g. CORS)
-            const t = Date.now() * 0.005;
-            bass = (Math.sin(t * 2) + 1) * 0.4;
-            mid = (Math.cos(t * 3) + 1) * 0.3;
-            high = (Math.sin(t * 5) + 1) * 0.2;
-        }
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
 
-        const time = Date.now() * 0.008; // Animation time
+	      for (let i = 0; i < RING_COUNT; i++) {
+	        const energy = bands[i];
+	        const radiusStep = (maxRadius - baseRadius) / RING_COUNT;
+	        const idleBreath = Math.sin(time * 1.5 + i * 0.32) * 0.012;
+	        const wave = isPlaying ? (time * 0.22 + i / RING_COUNT) % 1 : (i + 1) / (RING_COUNT + 2) + idleBreath;
+	        const radius = baseRadius + wave * (maxRadius - baseRadius) + energy * radiusStep * 0.9;
+	        const hue = ((isPlaying ? time * 40 : 210) + i * 24) % 360;
+	        const fadeIn = isPlaying ? smoothstep(0.02, 0.18, wave) : 1;
+	        const fadeOut = isPlaying ? 1 - smoothstep(0.62, 0.98, wave) : 0.86 + Math.sin(time * 1.2 + i * 0.4) * 0.08;
+	        const opacity = Math.min(0.95, (isPlaying ? 0.48 + energy * 0.78 : 0.24 + energy * 0.35) * fadeOut * fadeIn);
+	        const lineWidth = Math.max(2.2, 2.8 + energy * 4.4) * (isPlaying ? 0.55 + fadeOut * 0.45 : 0.58);
 
-        // --- POSE CALCULATIONS ---
-        
-        // Base Positions (Idle)
-        // Y-axis bounce driven by Bass
-        const bounce = isPlaying ? -Math.abs(Math.sin(time * 4)) * bass * 20 * scale : 0;
-        const breathe = isPlaying ? 0 : Math.sin(time) * 2 * scale; // Idle breathing
-        
-        const bodyY = cy + bounce + breathe; 
-        const spineLen = 45 * scale;
-        const shoulderY = bodyY - spineLen;
-        const hipY = bodyY;
+        if (opacity <= 0.01) continue;
 
-        // Head
-        const headX = cx;
-        const headY = shoulderY - (15 * scale); // Neck gap
-        const headR = 12 * scale;
-
-        // Limbs Lengths
-        const armLen = 25 * scale;
-        const forearmLen = 25 * scale;
-        const thighLen = 30 * scale;
-        const shinLen = 30 * scale;
-
-        // Angles (Radians)
-        let lArmAngle = Math.PI * 0.7; // Resting down-ish
-        let rArmAngle = Math.PI * 0.3; 
-        let lLegAngle = Math.PI * 0.6;
-        let rLegAngle = Math.PI * 0.4;
-        let lKneeBend = 0.2;
-        let rKneeBend = 0.2;
-        let lElbowBend = 0.5;
-        let rElbowBend = 0.5;
-
-        if (isPlaying) {
-            // Dancing Logic
-            // Arms wave with Mid/High frequencies
-            lArmAngle = Math.PI + Math.sin(time * 2 + mid * 5) * (1 + mid); 
-            rArmAngle = 0 - Math.sin(time * 2 + mid * 5) * (1 + mid);
-            
-            // Elbows bend with energy
-            lElbowBend = Math.PI / 2 + Math.sin(time * 4) * 0.5 * high;
-            rElbowBend = -(Math.PI / 2 + Math.sin(time * 4) * 0.5 * high);
-
-            // Legs step/kick with Bass
-            const step = Math.sin(time * 3);
-            lLegAngle = Math.PI * 0.5 + 0.3 + (step * 0.5 * bass);
-            rLegAngle = Math.PI * 0.5 - 0.3 - (step * 0.5 * bass);
-            
-            lKneeBend = -Math.abs(Math.sin(time * 3 + Math.PI)) * bass;
-            rKneeBend = Math.abs(Math.sin(time * 3)) * bass;
-        }
-
-        // --- JOINT COMPUTATIONS ---
-
-        // Shoulders
-        const shoulderW = 10 * scale;
-        const lShoulderX = cx - shoulderW;
-        const rShoulderX = cx + shoulderW;
-
-        // Arms
-        const lElbowX = lShoulderX + Math.cos(lArmAngle) * armLen;
-        const lElbowY = shoulderY + Math.sin(lArmAngle) * armLen;
-        const lHandX = lElbowX + Math.cos(lArmAngle + lElbowBend) * forearmLen;
-        const lHandY = lElbowY + Math.sin(lArmAngle + lElbowBend) * forearmLen;
-
-        const rElbowX = rShoulderX + Math.cos(rArmAngle) * armLen;
-        const rElbowY = shoulderY + Math.sin(rArmAngle) * armLen;
-        const rHandX = rElbowX + Math.cos(rArmAngle + rElbowBend) * forearmLen;
-        const rHandY = rElbowY + Math.sin(rArmAngle + rElbowBend) * forearmLen;
-
-        // Hips
-        const hipW = 8 * scale;
-        const lHipX = cx - hipW;
-        const rHipX = cx + hipW;
-
-        // Legs
-        const lKneeX = lHipX + Math.cos(lLegAngle) * thighLen;
-        const lKneeY = hipY + Math.sin(lLegAngle) * thighLen;
-        const lFootX = lKneeX + Math.cos(lLegAngle + lKneeBend) * shinLen;
-        const lFootY = lKneeY + Math.sin(lLegAngle + lKneeBend) * shinLen;
-
-        const rKneeX = rHipX + Math.cos(rLegAngle) * thighLen;
-        const rKneeY = hipY + Math.sin(rLegAngle) * thighLen;
-        const rFootX = rKneeX + Math.cos(rLegAngle + rKneeBend) * shinLen;
-        const rFootY = rKneeY + Math.sin(rLegAngle + rKneeBend) * shinLen;
-
-
-        // --- RENDERING ---
-        
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.lineWidth = 6 * scale;
-        
-        // Dynamic Glow
-        const glowIntensity = isPlaying ? 10 + bass * 20 : 5;
-        ctx.shadowBlur = glowIntensity;
-        ctx.shadowColor = color;
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-
-        // Draw Skeleton
-        
-        // 1. Torso
         ctx.beginPath();
-        ctx.moveTo(cx, shoulderY);
-        ctx.lineTo(cx, hipY);
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(${hue}, 90%, 68%, ${opacity})`;
+        ctx.lineWidth = lineWidth;
+        ctx.shadowBlur = 5 + energy * 12;
+        ctx.shadowColor = `hsla(${hue}, 95%, 70%, 0.35)`;
         ctx.stroke();
+      }
 
-        // 2. Shoulders (Line)
+	      if (isPlaying && expandLastRing) {
+	        const burstWave = (time * 0.16) % 1;
+	        const burstFadeIn = smoothstep(0.05, 0.22, burstWave);
+	        const burstFadeOut = 1 - smoothstep(0.48, 1, burstWave);
+	        const burstOpacity = burstFadeIn * burstFadeOut * 0.82;
+	        if (burstOpacity > 0.01) {
+	        const burstEnergy = Math.max(...bands);
+	        const burstHue = (time * 55 + 220) % 360;
+	        const burstSize = maxRadius + smoothstep(0, 1, burstWave) * (burstRadius - maxRadius);
+
         ctx.beginPath();
-        ctx.moveTo(lShoulderX, shoulderY);
-        ctx.lineTo(rShoulderX, shoulderY);
-        ctx.stroke();
+        ctx.arc(centerX, centerY, burstSize + burstEnergy * 22, 0, Math.PI * 2);
+        ctx.strokeStyle = `hsla(${burstHue}, 95%, 72%, ${burstOpacity})`;
+        ctx.lineWidth = 2.5 + burstEnergy * 4;
+        ctx.shadowBlur = 12 + burstEnergy * 18;
+	        ctx.shadowColor = `hsla(${burstHue}, 95%, 72%, ${burstOpacity * 0.7})`;
+	        ctx.stroke();
+	        }
+	      }
 
-        // 3. Hips (Line)
-        ctx.beginPath();
-        ctx.moveTo(lHipX, hipY);
-        ctx.lineTo(rHipX, hipY);
-        ctx.stroke();
+	      const idleCorePulse = isPlaying ? 0 : (Math.sin(time * 2.4) + 1) * 0.12;
+	      const coreRadius = baseRadius * (0.6 + bands[0] * 0.65 + idleCorePulse);
+      const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreRadius * 2.4);
+      coreGradient.addColorStop(0, 'rgba(255,255,255,0.95)');
+      coreGradient.addColorStop(0.18, safeColor);
+      coreGradient.addColorStop(0.55, 'rgba(123, 92, 255, 0.28)');
+      coreGradient.addColorStop(1, 'rgba(123, 92, 255, 0)');
+      ctx.fillStyle = coreGradient;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = safeColor;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, coreRadius, 0, Math.PI * 2);
+      ctx.fill();
 
-        // 4. Head
-        ctx.beginPath();
-        ctx.arc(headX, headY, headR, 0, Math.PI * 2);
-        ctx.fill(); 
-        // Eyes (Clone AI look)
-        ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.arc(headX - 4*scale, headY, 2*scale, 0, Math.PI*2);
-        ctx.arc(headX + 4*scale, headY, 2*scale, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = color; // Reset fill
-
-        // 5. Arms
-        // Left
-        ctx.beginPath();
-        ctx.moveTo(lShoulderX, shoulderY);
-        ctx.lineTo(lElbowX, lElbowY);
-        ctx.lineTo(lHandX, lHandY);
-        ctx.stroke();
-        // Right
-        ctx.beginPath();
-        ctx.moveTo(rShoulderX, shoulderY);
-        ctx.lineTo(rElbowX, rElbowY);
-        ctx.lineTo(rHandX, rHandY);
-        ctx.stroke();
-
-        // 6. Legs
-        // Left
-        ctx.beginPath();
-        ctx.moveTo(lHipX, hipY);
-        ctx.lineTo(lKneeX, lKneeY);
-        ctx.lineTo(lFootX, lFootY);
-        ctx.stroke();
-        // Right
-        ctx.beginPath();
-        ctx.moveTo(rHipX, hipY);
-        ctx.lineTo(rKneeX, rKneeY);
-        ctx.lineTo(rFootX, rFootY);
-        ctx.stroke();
-
-        // Joints (Circles)
-        const drawJoint = (jx: number, jy: number) => {
-            ctx.beginPath();
-            ctx.arc(jx, jy, 3 * scale, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        drawJoint(lShoulderX, shoulderY);
-        drawJoint(rShoulderX, shoulderY);
-        drawJoint(lElbowX, lElbowY);
-        drawJoint(rElbowX, rElbowY);
-        drawJoint(lHandX, lHandY);
-        drawJoint(rHandX, rHandY);
-        
-        drawJoint(lHipX, hipY);
-        drawJoint(rHipX, hipY);
-        drawJoint(lKneeX, lKneeY);
-        drawJoint(rKneeX, rKneeY);
-        drawJoint(lFootX, lFootY);
-        drawJoint(rFootX, rFootY);
-
-        ctx.shadowBlur = 0; // Reset for next frame
-
-        animationRef.current = requestAnimationFrame(render);
+      ctx.restore();
+      animationRef.current = requestAnimationFrame(render);
     };
 
     render();
 
     return () => {
-        cancelAnimationFrame(animationRef.current);
-        window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animationRef.current);
+      window.removeEventListener('resize', resize);
     };
-  }, [analyserNode, isPlaying, color]);
+  }, [analyserNode, color, isPlaying, expandLastRing]);
 
   return <canvas ref={canvasRef} className="w-full h-full block" />;
 };

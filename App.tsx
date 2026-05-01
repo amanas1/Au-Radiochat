@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { 
-  RadioStation, UserProfile, ThemeName, BaseTheme, Language, 
+  RadioStation, ThemeName, BaseTheme, Language, 
   VisualizerVariant, VisualizerSettings, AmbienceState, PassportData, 
   AlarmConfig, FxSettings, StreamQuality, CategoryInfo, InterfaceMode
 } from './types';
@@ -13,7 +13,7 @@ import { detectSpeechFromSpectrum, isAiAvailable, optimizeStationList } from './
 import { 
   MusicNoteIcon, VolumeIcon, PreviousIcon, NextIcon, PlayIcon, PauseIcon, 
   LoadingIcon, AdjustmentsIcon, MenuIcon, ClockIcon, BellIcon, MaximizeIcon, XMarkIcon,
-  MinusIcon, PlusIcon
+  MinusIcon, PlusIcon, HeartIcon
 } from './components/Icons';
 
 import AudioVisualizer from './components/AudioVisualizer';
@@ -22,9 +22,7 @@ import CardVisualizer from './components/CardVisualizer';
 
 // Lazy load heavy components
 const ToolsPanel = React.lazy(() => import('./components/ToolsPanel'));
-const ChatPanel = React.lazy(() => import('./components/ChatPanel'));
 const MusicStorm = React.lazy(() => import('./components/MusicStorm'));
-const ProfileSetup = React.lazy(() => import('./components/ProfileSetup'));
 const TutorialOverlay = React.lazy(() => import('./components/TutorialOverlay'));
 const ManualModal = React.lazy(() => import('./components/ManualModal'));
 const DownloadAppModal = React.lazy(() => import('./components/DownloadAppModal'));
@@ -33,19 +31,59 @@ const GitHubModal = React.lazy(() => import('./components/GitHubModal'));
 
 const App: React.FC = () => {
   // --- Application State ---
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem('streamflow_user_profile');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
 
   const [stations, setStations] = useState<RadioStation[]>([]);
   const [currentStationIndex, setCurrentStationIndex] = useState<number>(0);
   const [stationVersion, setStationVersion] = useState(0);
   const [stationsLoading, setStationsLoading] = useState(true);
+
+  const [favorites, setFavorites] = useState<RadioStation[]>(() => {
+    try {
+      const saved = localStorage.getItem('streamflow_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('streamflow_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const isFavorite = (station: RadioStation) => {
+    return station ? favorites.some(s => s.stationuuid === station.stationuuid) : false;
+  };
+
+  const toggleFavorite = (station: RadioStation) => {
+    if (!station) return;
+    
+    setFavorites(prev => {
+      const exists = prev.find(s => s.stationuuid === station.stationuuid);
+      if (exists) {
+        return prev.filter(s => s.stationuuid !== station.stationuuid);
+      } else {
+        return [station, ...prev];
+      }
+    });
+
+    if (currentCategory?.id === 'favorites') {
+        setStations(prev => {
+            const indexToRemove = prev.findIndex(s => s.stationuuid === station.stationuuid);
+            if (indexToRemove === -1) return prev;
+            
+            const newStations = prev.filter(s => s.stationuuid !== station.stationuuid);
+            
+            if (indexToRemove < currentStationIndex) {
+                setCurrentStationIndex(prevIndex => Math.max(0, prevIndex - 1));
+            } else if (indexToRemove === currentStationIndex) {
+                setCurrentStationIndex(prevIndex => Math.min(prevIndex, Math.max(0, newStations.length - 1)));
+            }
+            
+            // If they removed the last station in the favorites list, we should probably stop playing, but we'll leave it as is for now.
+            return newStations;
+        });
+    }
+  };
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -59,7 +97,6 @@ const App: React.FC = () => {
   
   // Modals & Panels
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
@@ -75,8 +112,8 @@ const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('en');
   const [vizVariant, setVizVariant] = useState<VisualizerVariant>('galaxy');
   const [vizSettings, setVizSettings] = useState<VisualizerSettings>({
-    scaleX: 1, scaleY: 1, brightness: 100, contrast: 100, saturation: 100, hue: 0, opacity: 1, speed: 1, autoIdle: true, performanceMode: false
-  });
+    scaleX: 1, scaleY: 1, brightness: 100, contrast: 100, saturation: 100, hue: 0, opacity: 1, speed: 1, autoIdle: true, performanceMode: false, expandLastRing: false
+  } as VisualizerSettings & { expandLastRing?: boolean });
   const [ambience, setAmbience] = useState<AmbienceState>({
     rainVolume: 0, rainVariant: 'soft', fireVolume: 0, cityVolume: 0, vinylVolume: 0, is8DEnabled: false, spatialSpeed: 1
   });
@@ -122,6 +159,7 @@ const App: React.FC = () => {
   const errorCountRef = useRef(0);
 
   const categoryContainerRef = useRef<HTMLDivElement>(null);
+  const stationsContainerRef = useRef<HTMLDivElement>(null);
 
   const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
   const [isNewsVisible, setIsNewsVisible] = useState(true);
@@ -351,7 +389,7 @@ const App: React.FC = () => {
           if (!uiVisible) setUiVisible(true);
           clearTimeout(timeout);
           // Auto-hide UI if autoIdle enabled OR visualizer mode selected
-          if ((vizSettings.autoIdle || fullScreenStyle === 'visualizer') && !toolsOpen && !chatOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
+          if ((vizSettings.autoIdle || fullScreenStyle === 'visualizer') && !toolsOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
               timeout = window.setTimeout(() => {
                   setUiVisible(false);
               }, 20000); // 20 seconds
@@ -370,7 +408,7 @@ const App: React.FC = () => {
           window.removeEventListener('touchstart', resetIdle);
           window.removeEventListener('keydown', resetIdle);
       };
-  }, [vizSettings.autoIdle, fullScreenStyle, toolsOpen, chatOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen, uiVisible]);
+  }, [vizSettings.autoIdle, fullScreenStyle, toolsOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen, uiVisible]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -535,13 +573,20 @@ const App: React.FC = () => {
       return () => clearInterval(interval);
   }, [sleepTimer]);
 
-  const handleProfileUpdate = (profile: UserProfile) => {
-    setUserProfile(profile);
-    localStorage.setItem('streamflow_user_profile', JSON.stringify(profile));
-  };
-
   const handleCategorySelect = async (category: CategoryInfo) => {
     setContextMenuOpen(false);
+    setCurrentCategory(category);
+    if (category.id === 'favorites') {
+        if (favorites.length > 0) {
+            setStations(favorites);
+            setCurrentStationIndex(0);
+            setStationVersion(v => v + 1);
+            setIsPlaying(true);
+            setAutoStart(true);
+        }
+        return;
+    }
+
     setIsBuffering(true);
     try {
         const newStations = await fetchStationsByTag(category.id, 60, streamQuality);
@@ -600,31 +645,38 @@ const App: React.FC = () => {
       }
   };
 
-  // --- CURSOR TRACKING FOR CATEGORY NAV (Sensitivity Fix) ---
+  // --- CURSOR TRACKING FOR NAV (Sensitivity Fix) ---
   useEffect(() => {
-      const container = categoryContainerRef.current;
-      if (!container) return;
-
       const handleMove = (e: MouseEvent | TouchEvent) => {
           const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
           const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
           const windowWidth = window.innerWidth;
           
-          // Only trigger tracking if cursor is in the top 200px (closer to genres)
-          if (clientY > 200) return;
+          // Only trigger tracking if cursor is in the top 300px (closer to genres & stations)
+          if (clientY > 300) return;
 
           // Calculate percentage of screen width (0 to 1)
           const percentage = Math.max(0, Math.min(1, clientX / windowWidth));
           
-          const maxScroll = container.scrollWidth - container.clientWidth;
-          const targetScroll = maxScroll * percentage;
-          
-          // Smooth scroll
-          const currentScroll = container.scrollLeft;
-          const diff = targetScroll - currentScroll;
-          
-          if (Math.abs(diff) > 1) {
-              container.scrollLeft = currentScroll + diff * 0.1; // Lerp factor
+          const containers = [categoryContainerRef.current, stationsContainerRef.current];
+          let needsAnimation = false;
+
+          containers.forEach(container => {
+              if (!container) return;
+              const maxScroll = container.scrollWidth - container.clientWidth;
+              const targetScroll = maxScroll * percentage;
+              
+              // Smooth scroll
+              const currentScroll = container.scrollLeft;
+              const diff = targetScroll - currentScroll;
+              
+              if (Math.abs(diff) > 1) {
+                  container.scrollLeft = currentScroll + diff * 0.1; // Lerp factor
+                  needsAnimation = true;
+              }
+          });
+
+          if (needsAnimation) {
               requestAnimationFrame(() => handleMove(e));
           }
       };
@@ -641,15 +693,6 @@ const App: React.FC = () => {
           window.removeEventListener('touchmove', onInteraction);
       };
   }, []);
-
-  if (!userProfile) {
-    return (
-      <ProfileSetup 
-        onComplete={handleProfileUpdate} 
-        language={language}
-      />
-    );
-  }
 
   const themeStyle = {
     '--color-primary': theme === 'default' ? '#bc6ff1' : 
@@ -720,6 +763,15 @@ const App: React.FC = () => {
                         style={{ maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)' }}
                     >
                         <div className="flex gap-3 px-6 w-max">
+                             <button
+                                onClick={() => handleCategorySelect({ id: 'favorites', name: 'Favorites', color: 'from-rose-500 to-pink-500' })}
+                                className="px-5 py-3 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 backdrop-blur-xl transition-all active:scale-95 group flex items-center gap-2 shadow-lg"
+                             >
+                                 <HeartIcon className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" filled={true} />
+                                 <span className="text-xs font-bold text-rose-500 uppercase tracking-wider whitespace-nowrap">
+                                     {language === 'ru' ? 'Избранное' : 'Favorites'} {favorites.length > 0 && `(${favorites.length})`}
+                                 </span>
+                             </button>
                              {[...MOODS, ...GENRES, ...ERAS].map(cat => (
                                  <button
                                     key={cat.id}
@@ -741,6 +793,48 @@ const App: React.FC = () => {
                              </button>
                         </div>
                     </div>
+                    
+                    {/* Stations List Row (Only for Favorites) */}
+                    {stations.length > 0 && currentCategory?.id === 'favorites' && (
+                        <div 
+                            ref={stationsContainerRef}
+                            className="w-full overflow-x-auto no-scrollbar cursor-pointer mt-4 animate-in slide-in-from-top-2 duration-500" 
+                            style={{ maskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 5%, black 95%, transparent)' }}
+                        >
+                            <div className="flex gap-2 px-6 w-max">
+                                {stations.map((station, index) => (
+                                    <div
+                                        key={station.stationuuid}
+                                        className={`px-3 py-1.5 rounded-full border backdrop-blur-xl transition-all flex items-center gap-2 shadow-sm ${currentStationIndex === index ? 'bg-rose-500/20 border-rose-500/50 text-white' : 'bg-black/40 hover:bg-white/10 border-white/10 text-white/70 hover:text-white'}`}
+                                    >
+                                        <button
+                                            onClick={() => {
+                                                setCurrentStationIndex(index);
+                                                setIsPlaying(true);
+                                                setAutoStart(true);
+                                            }}
+                                            className="flex items-center gap-2 active:scale-95 outline-none"
+                                        >
+                                            <HeartIcon className={`w-3 h-3 ${currentStationIndex === index ? 'text-rose-500' : 'text-rose-400'}`} filled={true} />
+                                            <span className="text-xs font-bold whitespace-nowrap max-w-[120px] truncate">
+                                                {station.name}
+                                            </span>
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleFavorite(station);
+                                            }}
+                                            className="p-1 hover:bg-white/20 rounded-full transition-colors active:scale-95 ml-1"
+                                            title="Remove from favorites"
+                                        >
+                                            <XMarkIcon className="w-3 h-3 text-slate-400 hover:text-white" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -755,27 +849,21 @@ const App: React.FC = () => {
                     ) : stations.length > 0 && currentStation ? (
                         <div className={`flex flex-col ${isMinimal ? 'items-center gap-4' : 'landscape:flex-row items-center justify-center gap-8 landscape:gap-16'} w-full h-full p-4 animate-in fade-in duration-500`}>
                             {/* Card Section */}
-                            <div className="relative group perspective-1000 flex-shrink-0">
-                                {!isMinimal && <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-[2.5rem] blur-xl opacity-40 group-hover:opacity-70 transition-opacity duration-1000 animate-gradient-xy"></div>}
+                            <div className="relative flex-shrink-0">
                                 <div 
-                                    className={`${isMinimal ? 'w-[200px] h-[200px] rounded-[2rem]' : 'w-[70vw] h-[70vw] max-w-[320px] max-h-[320px] md:max-w-[400px] md:max-h-[400px] landscape:w-[45vh] landscape:h-[45vh] landscape:max-w-[320px] landscape:max-h-[320px] rounded-[2.5rem]'} relative z-10 overflow-hidden shadow-2xl border border-white/10 bg-black transform transition-transform duration-500 hover:scale-[1.02]`}
-                                    style={{ borderColor: customCardColor ? `rgb(${customCardColor})` : 'rgba(255,255,255,0.1)' }}
+                                    className={`${isMinimal ? 'w-[200px] h-[200px] rounded-[2rem]' : 'w-[70vw] h-[70vw] max-w-[320px] max-h-[320px] md:max-w-[400px] md:max-h-[400px] landscape:w-[45vh] landscape:h-[45vh] landscape:max-w-[320px] landscape:max-h-[320px] rounded-[2.5rem]'} relative z-10 transform transition-transform duration-500 hover:scale-[1.02]`}
                                 >
-                                    <div className="absolute inset-0 rounded-[2.5rem] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] z-20 pointer-events-none"></div>
-                                    {!imgError && currentStation.favicon ? (
-                                        <img 
-                                            src={currentStation.favicon} 
-                                            className="w-full h-full object-cover" 
-                                            onError={(e) => { 
-                                                setImgError(true);
-                                                (e.target as HTMLImageElement).style.display = 'none';
-                                            }} 
-                                        />
-                                    ) : (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black w-full h-full">
-                                            <CardVisualizer analyserNode={analyserRef.current} isPlaying={isPlaying} color="var(--color-primary)" />
-                                        </div>
-                                    )}
+                                    <div
+                                        className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center pointer-events-none"
+                                        style={{
+                                            width: 'min(130vw, 900px)',
+                                            height: 'min(130vw, 900px)'
+                                        }}
+                                    >
+                                        {vizVariant !== 'mixed-rings' && (
+                                            <CardVisualizer analyserNode={analyserRef.current} isPlaying={isPlaying} color="var(--color-primary)" expandLastRing={vizSettings.expandLastRing !== false} />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -788,13 +876,13 @@ const App: React.FC = () => {
                                     </p>
                                 </div>
 
-                                <div className={`w-full mt-2 bg-[var(--player-bar-bg)] backdrop-blur-2xl border border-white/10 rounded-[3rem] px-6 py-4 md:px-8 md:py-5 flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20`}>
-                                    {!isFocus && (
-                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className={`w-full mt-2 bg-[var(--player-bar-bg)] backdrop-blur-2xl border border-white/10 rounded-[3rem] px-4 py-4 md:px-8 md:py-5 grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-4 items-center shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20`}>
+                                    {!isFocus ? (
+                                        <div className="flex items-center gap-2 md:gap-3 justify-start min-w-0 pr-2">
                                             <button onClick={() => setVolume(v => v === 0 ? 0.5 : 0)} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors shrink-0">
-                                                <VolumeIcon className="w-5 h-5" />
+                                                <VolumeIcon className="w-4 h-4 md:w-5 md:h-5" />
                                             </button>
-                                            <div className="h-1 bg-[var(--text-muted)]/20 rounded-full flex-1 max-w-[60px] md:max-w-[100px] relative group cursor-pointer">
+                                            <div className="h-1 bg-[var(--text-muted)]/20 rounded-full flex-1 min-w-[20px] max-w-[80px] md:max-w-[100px] relative group cursor-pointer mr-1 md:mr-2">
                                                     <div className="absolute inset-0 bg-[var(--text-base)] origin-left rounded-full transition-all" style={{ width: `${volume * 100}%` }}></div>
                                                     <input 
                                                         type="range" min="0" max="1" step="0.01" 
@@ -802,27 +890,33 @@ const App: React.FC = () => {
                                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                                     />
                                             </div>
+                                            <button 
+                                                onClick={() => toggleFavorite(currentStation)} 
+                                                className={`p-1.5 md:p-2 transition-all hover:scale-125 active:scale-90 shrink-0 mr-3 md:mr-6 ${isFavorite(currentStation) ? 'text-rose-500' : 'text-[var(--text-muted)] hover:text-rose-400'}`}
+                                            >
+                                                <HeartIcon className="w-4 h-4 md:w-6 md:h-6" filled={isFavorite(currentStation)} />
+                                            </button>
                                         </div>
-                                    )}
+                                    ) : <div></div>}
 
-                                    <div className="flex items-center gap-4 md:gap-6 justify-center flex-1 shrink-0">
+                                    <div className="flex items-center gap-3 md:gap-6 justify-center">
                                         <button onClick={handlePreviousStation} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-all hover:scale-110 active:scale-95"><PreviousIcon className="w-6 h-6 md:w-8 md:h-8" /></button>
-                                        <button onClick={togglePlay} className="w-12 h-12 md:w-16 md:h-16 bg-[var(--text-base)] text-[var(--base-bg)] rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all">
+                                        <button onClick={togglePlay} className="w-12 h-12 md:w-16 md:h-16 bg-[var(--text-base)] text-[var(--base-bg)] rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all shrink-0">
                                             {isBuffering ? <LoadingIcon className="w-5 h-5 md:w-8 md:h-8 animate-spin" /> : isPlaying ? <PauseIcon className="w-5 h-5 md:w-8 md:h-8" /> : <PlayIcon className="w-5 h-5 md:w-8 md:h-8 ml-1" />}
                                         </button>
                                         <button onClick={handleNextStation} className="text-[var(--text-muted)] hover:text-[var(--text-base)] transition-all hover:scale-110 active:scale-95"><NextIcon className="w-6 h-6 md:w-8 md:h-8" /></button>
                                     </div>
 
-                                    {!isFocus && (
-                                        <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end min-w-0">
-                                                <button onClick={() => { setInitialToolsTab('eq'); setToolsOpen(true); }} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full" title="Equalizer">
-                                                    <AdjustmentsIcon className="w-5 h-5" />
+                                    {!isFocus ? (
+                                        <div className="flex items-center gap-1 md:gap-4 justify-end min-w-0 pl-2">
+                                                <button onClick={() => { setInitialToolsTab('eq'); setToolsOpen(true); }} className="p-1.5 md:p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full shrink-0" title="Equalizer">
+                                                    <AdjustmentsIcon className="w-4 h-4 md:w-5 md:h-5" />
                                                 </button>
-                                                <button onClick={() => setContextMenuOpen(!contextMenuOpen)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full">
-                                                    <MenuIcon className="w-5 h-5" />
+                                                <button onClick={() => setContextMenuOpen(!contextMenuOpen)} className="p-1.5 md:p-2 text-[var(--text-muted)] hover:text-[var(--text-base)] transition-colors hover:bg-white/10 rounded-full shrink-0">
+                                                    <MenuIcon className="w-4 h-4 md:w-5 md:h-5" />
                                                 </button>
                                         </div>
-                                    )}
+                                    ) : <div></div>}
                                 </div>
                                 
                                 {sleepTimer && (
@@ -917,7 +1011,6 @@ const App: React.FC = () => {
                 setVizSettings={setVizSettings}
                 onStartTutorial={() => { setToolsOpen(false); setTutorialOpen(true); }}
                 onOpenManual={() => { setToolsOpen(false); setManualOpen(true); }}
-                onOpenProfile={() => { setToolsOpen(false); setUserProfile(null); }}
                 showDeveloperNews={showDevNews}
                 setShowDeveloperNews={setShowDevNews}
                 ambience={ambience}
@@ -937,7 +1030,6 @@ const App: React.FC = () => {
                 setAutoStart={setAutoStart}
                 aiSpeechFilter={aiSpeechFilter}
                 setAiSpeechFilter={setAiSpeechFilter}
-                onOpenChat={() => { setToolsOpen(false); setChatOpen(true); }}
                 fullScreenStyle={fullScreenStyle}
                 setFullScreenStyle={setFullScreenStyle}
                 onOptimizeStations={handleAiOptimization}
@@ -946,23 +1038,6 @@ const App: React.FC = () => {
                 setInterfaceMode={setInterfaceMode}
                 isShuffleEnabled={isShuffleEnabled}
                 setIsShuffleEnabled={setIsShuffleEnabled}
-            />
-
-            <ChatPanel 
-                isOpen={chatOpen} 
-                onClose={() => setChatOpen(false)} 
-                language={language}
-                onLanguageChange={setLanguage}
-                currentUser={userProfile}
-                onUpdateCurrentUser={handleProfileUpdate}
-                isPlaying={isPlaying}
-                onTogglePlay={togglePlay}
-                onNextStation={handleNextStation}
-                onPrevStation={handlePreviousStation}
-                currentStation={currentStation || null}
-                analyserNode={analyserRef.current}
-                volume={volume}
-                onVolumeChange={setVolume}
             />
 
             <TutorialOverlay isOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} language={language} />

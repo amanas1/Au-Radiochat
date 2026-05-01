@@ -31,7 +31,6 @@ interface ToolsPanelProps {
   setVizSettings: (s: VisualizerSettings) => void;
   onStartTutorial: () => void;
   onOpenManual: () => void;
-  onOpenProfile: () => void;
   showDeveloperNews: boolean;
   setShowDeveloperNews: (show: boolean) => void;
   ambience: AmbienceState;
@@ -49,7 +48,6 @@ interface ToolsPanelProps {
   setStreamQuality: (q: StreamQuality) => void;
   autoStart: boolean;
   setAutoStart: (b: boolean) => void;
-  onOpenChat?: () => void;
   initialTab?: 'viz' | 'eq' | 'look' | 'ambience' | 'fx' | 'timer' | 'settings';
   aiSpeechFilter?: boolean;
   setAiSpeechFilter?: (enabled: boolean) => void;
@@ -107,7 +105,6 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
   fxSettings, setFxSettings,
   streamQuality, setStreamQuality,
   autoStart, setAutoStart,
-  onOpenChat,
   initialTab = 'settings',
   aiSpeechFilter, setAiSpeechFilter, onOptimizeStations, onRestartAudio,
   isShuffleEnabled, setIsShuffleEnabled,
@@ -141,7 +138,6 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
   };
 
   const tabs = [
-    { id: 'chat_360', icon: ChatBubbleIcon, label: 'Chat 360', action: onOpenChat },
     { id: 'settings', icon: LifeBuoyIcon, label: language === 'ru' ? 'Настройки' : 'Settings' },
     { id: 'look', icon: PaletteIcon, label: language === 'ru' ? 'Темы' : 'Themes' },
     { id: 'viz', icon: SwatchIcon, label: language === 'ru' ? 'Визуализатор' : 'Visualizer' },
