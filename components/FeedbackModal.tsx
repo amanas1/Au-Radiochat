@@ -32,7 +32,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, language
         console.log(`Sending feedback to amanas5535332@gmail.com:\nRating: ${rating}\nMessage: ${message}`);
         
         // Actually trigger mailto as a fallback/real action for client-side
-        const subject = encodeURIComponent(`StreamFlow Feedback - Rating: ${rating}/5`);
+        const subject = encodeURIComponent(`Au-Radiochat Feedback - Rating: ${rating}/5`);
         const body = encodeURIComponent(message);
         window.location.href = `mailto:amanas5535332@gmail.com?subject=${subject}&body=${body}`;
 
@@ -55,7 +55,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, language
         </button>
 
         <h2 className="text-3xl font-black text-white mb-2">{t.feedbackTitle}</h2>
-        <p className="text-slate-400 text-sm mb-8">{t.helpImprove || "Help us improve StreamFlow."}</p>
+        <p className="text-slate-400 text-sm mb-8">{t.helpImprove || "Help us improve Au-Radiochat."}</p>
 
         {sent ? (
             <div className="py-10 text-center animate-in fade-in zoom-in">

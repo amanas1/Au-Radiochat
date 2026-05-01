@@ -1,0 +1,22 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1080" height="1920" fill="url(#bg)"/>
+  <text x="84" y="180" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="82" font-weight="700">Perfect for night listening</text>
+  <text x="84" y="254" fill="#BFDBFE" font-family="Arial, sans-serif" font-size="40">Set a sleep timer and wake up to your station</text>
+  <rect x="120" y="356" width="840" height="1320" rx="56" fill="#020617" stroke="rgba(255,255,255,0.12)" stroke-width="8"/>
+  <circle cx="540" cy="740" r="190" fill="#111827" stroke="#38BDF8" stroke-width="12"/>
+  <circle cx="540" cy="740" r="12" fill="#F8FAFC"/>
+  <path d="M540 740L540 620" stroke="#F8FAFC" stroke-width="16" stroke-linecap="round"/>
+  <path d="M540 740L630 785" stroke="#A855F7" stroke-width="16" stroke-linecap="round"/>
+  <rect x="220" y="1040" width="640" height="120" rx="30" fill="#111827"/>
+  <rect x="220" y="1200" width="300" height="110" rx="28" fill="#38BDF8"/>
+  <rect x="560" y="1200" width="300" height="110" rx="28" fill="#1E293B"/>
+  <text x="266" y="1120" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="46" font-weight="700">Sleep timer: 30 min</text>
+  <text x="292" y="1270" fill="#082F49" font-family="Arial, sans-serif" font-size="34" font-weight="700">Start timer</text>
+  <text x="632" y="1270" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="34" font-weight="700">Set alarm</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1080" y2="1920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#020617"/>
+      <stop offset="1" stop-color="#082F49"/>
+    </linearGradient>
+  </defs>
+</svg>
