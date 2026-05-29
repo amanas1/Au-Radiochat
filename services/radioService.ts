@@ -119,8 +119,24 @@ const filterStations = (data: RadioStation[], quality: StreamQuality = 'standard
       const tags = (station.tags || '').toLowerCase();
       if (blacklistTags.some(t => tags.includes(t))) return false;
 
+      // Safe exact check for commercial and advertisement tags (split by comma to avoid blocking "non-commercial")
+      const tagList = tags.split(',').map(t => t.trim());
+      const blacklistExactTags = ['commercial', 'ads', 'sponsored', 'preroll', 'ad', 'reklama', 'marketing', 'advertisement', 'advert', 'trading', 'forex'];
+      if (blacklistExactTags.some(t => tagList.includes(t))) return false;
+
       const codec = (station.codec || '').toLowerCase();
       const url = station.url_resolved.toLowerCase();
+
+      // Filter out streams explicitly hosted on known third-party commercial ad servers or pre-roll networks
+      if (
+          url.includes('preroll') || 
+          url.includes('adserver') || 
+          url.includes('ads.') || 
+          url.includes('/adv/') || 
+          url.includes('target-spot') ||
+          url.includes('adswizz') ||
+          url.includes('audiomax')
+      ) return false;
 
       // Ensure format is browser playable
       const isBrowserCompatible = (

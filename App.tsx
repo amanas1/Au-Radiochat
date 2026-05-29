@@ -103,6 +103,7 @@ const App: React.FC = () => {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [githubModalOpen, setGithubModalOpen] = useState(false);
+  const [adInfoOpen, setAdInfoOpen] = useState(false);
   
   const [initialToolsTab, setInitialToolsTab] = useState<'viz' | 'eq' | 'look' | 'ambience' | 'fx' | 'timer' | 'settings'>('settings');
   
@@ -389,7 +390,7 @@ const App: React.FC = () => {
           if (!uiVisible) setUiVisible(true);
           clearTimeout(timeout);
           // Auto-hide UI if autoIdle enabled OR visualizer mode selected
-          if ((vizSettings.autoIdle || fullScreenStyle === 'visualizer') && !toolsOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen) {
+          if ((vizSettings.autoIdle || fullScreenStyle === 'visualizer') && !toolsOpen && !tutorialOpen && !manualOpen && !downloadModalOpen && !feedbackModalOpen && !githubModalOpen && !adInfoOpen) {
               timeout = window.setTimeout(() => {
                   setUiVisible(false);
               }, 20000); // 20 seconds
@@ -408,7 +409,7 @@ const App: React.FC = () => {
           window.removeEventListener('touchstart', resetIdle);
           window.removeEventListener('keydown', resetIdle);
       };
-  }, [vizSettings.autoIdle, fullScreenStyle, toolsOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen, uiVisible]);
+  }, [vizSettings.autoIdle, fullScreenStyle, toolsOpen, tutorialOpen, manualOpen, downloadModalOpen, feedbackModalOpen, githubModalOpen, adInfoOpen, uiVisible]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -922,9 +923,18 @@ const App: React.FC = () => {
                             <div className={`flex flex-col w-full ${isMinimal ? 'max-w-xs' : 'max-w-2xl landscape:max-w-md'} items-center ${!isMinimal && 'landscape:items-start'} justify-center`}>
                                 <div className={`text-center w-full px-8 relative z-10 mx-auto ${!isMinimal && 'landscape:text-left landscape:px-0 landscape:mb-4'}`}>
                                     <h2 className={`${isMinimal ? 'text-xl' : 'text-2xl md:text-3xl'} font-black text-[var(--text-base)] mb-2 line-clamp-2 leading-tight drop-shadow-lg`}>{currentStation.name}</h2>
-                                    <p className="text-xs md:text-sm text-[var(--text-muted)] font-bold uppercase tracking-widest opacity-70 truncate">
-                                        {currentStation.tags || 'Global Radio'}
-                                    </p>
+                                    <div className={`flex items-center ${isMinimal ? 'justify-center' : 'justify-center landscape:justify-start'} gap-2 mt-1 w-full max-w-full overflow-hidden`}>
+                                        <p className="text-xs md:text-sm text-[var(--text-muted)] font-bold uppercase tracking-widest opacity-70 truncate max-w-[85%]">
+                                            {currentStation.tags || 'Global Radio'}
+                                        </p>
+                                        <button 
+                                            onClick={() => setAdInfoOpen(true)} 
+                                            className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-white/10 hover:bg-white/20 text-white/50 hover:text-white transition-all text-[10px] font-bold shrink-0 shadow-sm"
+                                            title={language === 'ru' ? 'Информация о рекламе в потоке' : 'Stream Ad Info'}
+                                        >
+                                            i
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className={`w-full mt-2 bg-[var(--player-bar-bg)] backdrop-blur-2xl border border-white/10 rounded-[3rem] px-4 py-4 md:px-8 md:py-5 grid grid-cols-[1fr_auto_1fr] gap-2 md:gap-4 items-center shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative z-20`}>
@@ -1096,6 +1106,52 @@ const App: React.FC = () => {
             <DownloadAppModal isOpen={downloadModalOpen} onClose={() => setDownloadModalOpen(false)} language={language} installPrompt={installPrompt} />
             <FeedbackModal isOpen={feedbackModalOpen} onClose={() => setFeedbackModalOpen(false)} language={language} />
             <GitHubModal isOpen={githubModalOpen} onClose={() => setGithubModalOpen(false)} language={language} />
+
+            {adInfoOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 pointer-events-auto" onClick={() => setAdInfoOpen(false)}></div>
+                    <div className="relative w-full max-w-lg glass-panel rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in duration-300 border border-white/10 text-center pointer-events-auto">
+                        <button onClick={() => setAdInfoOpen(false)} className="absolute top-6 right-6 p-2 bg-white/5 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-all">
+                            <XMarkIcon className="w-6 h-6" />
+                        </button>
+
+                        <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <svg className="w-8 h-8 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+
+                        <h2 className="text-2xl md:text-3xl font-black text-white mb-4">
+                            {language === 'ru' ? 'Реклама в потоке' : 'Stream-Injected Ads'}
+                        </h2>
+                        
+                        <div className="space-y-4 text-slate-300 text-sm md:text-base leading-relaxed font-medium text-left">
+                            <p>
+                                {language === 'ru' 
+                                  ? 'В приложении Au-Radiochat абсолютно нет рекламы — в нашем коде нет Google AdMob, сторонних баннеров или маркетинговых вставок.' 
+                                  : 'Au-Radiochat itself is 100% ad-free — there are zero banners, AdMob integrations, or visual ads in our code.'}
+                            </p>
+                            <p>
+                                {language === 'ru' 
+                                  ? 'Однако некоторые коммерческие радиостанции внедряют свою собственную голосовую рекламу (например, о трейдинге или криптовалюте) в самом начале воспроизведения (pre-roll) или в перерывах между песнями.' 
+                                  : 'However, some external commercial radio stations automatically inject their own audio advertisements (like trading, forex, or finance promos) when you first connect (pre-roll) or between songs.'}
+                            </p>
+                            <p className="p-4 bg-white/5 border border-white/10 rounded-2xl text-xs md:text-sm text-primary font-semibold text-center leading-normal">
+                                {language === 'ru' 
+                                  ? '💡 Решение: Просто нажмите кнопку «Вперед» для переключения на чистую станцию без рекламы или выберите некоммерческие каналы!' 
+                                  : '💡 Tip: Simply click the "Next" button to skip to an ad-free station, or select non-commercial/public channels!'}
+                            </p>
+                        </div>
+
+                        <button 
+                            onClick={() => setAdInfoOpen(false)}
+                            className="mt-6 w-full py-4 bg-primary text-white rounded-xl font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all"
+                        >
+                            {language === 'ru' ? 'Понятно' : 'Got it'}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
 
     </div>

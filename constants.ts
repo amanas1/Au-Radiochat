@@ -173,6 +173,7 @@ export const ACHIEVEMENTS_LIST: Achievement[] = [
 export const NEWS_MESSAGES: Record<string, string[]> = {
     en: [
         "Welcome to Au-Radiochat V2.0! Enjoy pure radio. • Administration",
+        "Tip: If you hear trading ads, it's from the radio stream server. Click 'Next' to skip to an ad-free station!",
         "Tip: Use the Tools panel (bottom right) to set a Sleep Timer or Alarm.",
         "Try the 8D Audio mode in the Ambience tab (Headphones recommended).",
         "Join the Global Chat to find friends from around the world!",
@@ -180,6 +181,7 @@ export const NEWS_MESSAGES: Record<string, string[]> = {
     ],
     ru: [
         "Добро пожаловать в Au-Radiochat V2.0! Наслаждайтесь эфиром. • Администрация",
+        "Совет: Слышите рекламу трейдинга? Её включает вещатель потока. Нажмите 'Вперед' для чистой музыки!",
         "Совет: В панели инструментов можно настроить Таймер сна и Будильник.",
         "Попробуйте режим 8D звука во вкладке Атмосфера (рекомендуются наушники).",
         "Заходите в Глобальный чат для поиска друзей по всему миру!",

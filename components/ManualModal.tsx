@@ -74,6 +74,13 @@ const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, language, on
         title: "Авто-скрытие UI",
         content: "Если вы хотите просто наслаждаться визуализацией, включите 'Авто-скрытие UI' в настройках визуала. Через 20 секунд бездействия все кнопки исчезнут, оставив только чистый арт. Движение мыши или касание вернет управление.",
         image: "/manual_assets/settings_autohide.png"
+    },
+    {
+        id: 'no_ads',
+        icon: <LifeBuoyIcon className="w-6 h-6 text-yellow-400" />,
+        title: "Реклама в потоке? Чистый звук!",
+        content: "Au-Radiochat абсолютно не содержит рекламы (в нашем коде нет никаких баннеров или AdMob). Однако некоторые коммерческие станции внедряют свою звуковую рекламу (о трейдинге и т.д.) в начале подключения к их потоку. Это делает вещательный сервер станции, а не наше приложение. Если вы слышите рекламу, просто нажмите кнопку 'Вперед', чтобы переключиться на чистую радиостанцию!",
+        image: ""
     }
   ] : [
     { 
@@ -131,6 +138,13 @@ const ManualModal: React.FC<ManualModalProps> = ({ isOpen, onClose, language, on
         title: "Auto-Hide UI",
         content: "Enable 'Auto-Hide UI' in visualizer settings. After 20 seconds of inactivity, all buttons will disappear, leaving only the beautiful animation.",
         image: "/manual_assets/settings_autohide.png"
+    },
+    {
+        id: 'no_ads',
+        icon: <LifeBuoyIcon className="w-6 h-6 text-yellow-400" />,
+        title: "Ads in Stream? Clean Audio!",
+        content: "Au-Radiochat is 100% ad-free (there are zero banners or AdMob SDKs in our code). However, some commercial radio stations inject their own audio ads (like trading promotions) at the very beginning when you connect to their stream. This is done by their broadcasting server, not by our app. If you hear an ad, simply click 'Next' to switch to a clean station!",
+        image: ""
     }
   ];
 
