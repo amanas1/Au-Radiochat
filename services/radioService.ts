@@ -103,7 +103,7 @@ const fetchAcrossMirrorsWithRetries = async (path: string, urlParams: string): P
 };
 
 
-const filterStations = (data: RadioStation[], quality: StreamQuality = 'standard', isShuffle: boolean = false) => {
+const filterStations = (data: RadioStation[], quality: StreamQuality = 'standard', isShuffle: boolean = false, blockTalk: boolean = false) => {
     const uniqueStations = new Map();
     // Exclude religion/quran/bible for Shuffle Mode specifically as requested
     // General blacklist for all modes
@@ -111,6 +111,14 @@ const filterStations = (data: RadioStation[], quality: StreamQuality = 'standard
     
     if (isShuffle) {
         blacklistTags.push('islamic', 'religion', 'quran', 'bible', 'sermon', 'church', 'gospel');
+    }
+
+    if (blockTalk) {
+        blacklistTags.push(
+            'podcast', 'interview', 'audiobook', 'book', 'lecture', 'sermon', 
+            'reading', 'discussion', 'info', 'information', 'show', 'dj', 'poetry', 'poem', 
+            'bible', 'quran', 'church', 'religion', 'religious', 'islamic'
+        );
     }
 
     let filtered = data.filter(station => {
@@ -123,6 +131,12 @@ const filterStations = (data: RadioStation[], quality: StreamQuality = 'standard
       const tagList = tags.split(',').map(t => t.trim());
       const blacklistExactTags = ['commercial', 'ads', 'sponsored', 'preroll', 'ad', 'reklama', 'marketing', 'advertisement', 'advert', 'trading', 'forex'];
       if (blacklistExactTags.some(t => tagList.includes(t))) return false;
+
+      const stationName = (station.name || '').toLowerCase();
+      if (blockTalk) {
+          const blockKeywords = ['news', 'talk', 'радио книга', 'книга', 'радиоспектакль', 'спорт', 'вещание', 'новости', 'разговор', 'сказки', 'лекции', 'подкаст', 'радио вера'];
+          if (blockKeywords.some(kw => stationName.includes(kw))) return false;
+      }
 
       const codec = (station.codec || '').toLowerCase();
       const url = station.url_resolved.toLowerCase();
@@ -212,8 +226,8 @@ const TAG_MAPPINGS: Record<string, string> = {
     'hiphop': 'hip hop'
 };
 
-export const fetchStationsByTag = async (tag: string, limit: number = 40, quality: StreamQuality = 'standard'): Promise<RadioStation[]> => {
-  const cacheKey = `tag_${tag}_${limit}_${quality}`;
+export const fetchStationsByTag = async (tag: string, limit: number = 40, quality: StreamQuality = 'standard', blockTalk: boolean = false): Promise<RadioStation[]> => {
+  const cacheKey = `tag_${tag}_${limit}_${quality}${blockTalk ? '_blocktalk' : ''}`;
   const cachedData = getFromCache(cacheKey);
   if (cachedData) {
       return cachedData;
@@ -228,7 +242,7 @@ export const fetchStationsByTag = async (tag: string, limit: number = 40, qualit
     const urlParams = `limit=${fetchLimit}&order=votes&reverse=true&hidebroken=true&https=true`;
     const data = await fetchAcrossMirrorsWithRetries(`bytag/${encodedTag}`, urlParams);
     
-    const filteredAndSliced = filterStations(data, quality).slice(0, limit);
+    const filteredAndSliced = filterStations(data, quality, false, blockTalk).slice(0, limit);
     
     if (filteredAndSliced.length > 0) {
         setToCache(cacheKey, filteredAndSliced);
@@ -240,18 +254,12 @@ export const fetchStationsByTag = async (tag: string, limit: number = 40, qualit
   }
 };
 
-export const fetchRandomStations = async (limit: number = 20, quality: StreamQuality = 'standard'): Promise<RadioStation[]> => {
+export const fetchRandomStations = async (limit: number = 20, quality: StreamQuality = 'standard', blockTalk: boolean = false): Promise<RadioStation[]> => {
     // Random endpoint doesn't support complex tagging exclusions directly in URL easily,
     // so we fetch a larger batch and filter client-side.
     try {
         const fetchLimit = limit * 5; 
         const urlParams = `limit=${fetchLimit}&hidebroken=true&https=true`;
-        // Use 'stations/random' endpoint provided by RadioBrowser API (usually mapped to /json/stations/random)
-        // Our fetch logic appends prefix, so we pass 'stations/random'
-        // Actually, in the helper it constructs `${baseUrl}/${path}`. 
-        // Mirrors usually structure as `/json/stations/bytag/...` so random is `/json/stations/random`
-        // But our path arg is appended. So we pass `stations/random`.
-        // Wait, typical mirror is `https://de1.api.radio-browser.info/json/stations`.
         // If we pass `stations/random`, it becomes `.../json/stations/stations/random` which is wrong.
         // The fetch helper takes `path`. It expects `bytag/jazz` etc.
         // So for random, we should probably modify the helper or just pass `random` if the base URL ends in /stations.
@@ -261,7 +269,7 @@ export const fetchRandomStations = async (limit: number = 20, quality: StreamQua
         const data = await fetchAcrossMirrorsWithRetries(`random`, urlParams);
         
         // Pass isShuffle=true to filterStations to exclude Religion tags
-        const filteredAndSliced = filterStations(data, quality, true).slice(0, limit);
+        const filteredAndSliced = filterStations(data, quality, true, blockTalk).slice(0, limit);
         
         return filteredAndSliced;
     } catch (error) {

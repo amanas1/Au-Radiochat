@@ -311,7 +311,7 @@ const App: React.FC = () => {
   const loadStations = async (tag = 'chill') => {
       setStationsLoading(true);
       try {
-        const loaded = await fetchStationsByTag(tag, 60, streamQuality);
+        const loaded = await fetchStationsByTag(tag, 60, streamQuality, aiSpeechFilter);
         if (loaded && loaded.length > 0) {
             setStations(loaded);
             if (autoStart) {
@@ -422,8 +422,12 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadStations();
-  }, [streamQuality]);
+    if (currentCategory && currentCategory.id !== 'favorites') {
+        handleCategorySelect(currentCategory);
+    } else {
+        loadStations(currentCategory?.id || 'chill');
+    }
+  }, [aiSpeechFilter, streamQuality]);
 
   useEffect(() => {
     if (!currentStation) return;
@@ -590,7 +594,7 @@ const App: React.FC = () => {
 
     setIsBuffering(true);
     try {
-        const newStations = await fetchStationsByTag(category.id, 60, streamQuality);
+        const newStations = await fetchStationsByTag(category.id, 60, streamQuality, aiSpeechFilter);
         if (newStations.length > 0) {
             setStations(newStations);
             setCurrentStationIndex(0);

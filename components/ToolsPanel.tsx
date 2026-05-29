@@ -290,6 +290,18 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${showDeveloperNews ? 'left-7' : 'left-1'}`}></div>
                              </button>
                         </div>
+
+                        {setAiSpeechFilter && (
+                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
+                                 <div>
+                                     <span className="font-bold text-sm text-slate-200 block">{language === 'ru' ? 'Блокировка разговоров (Только музыка)' : 'Block Talk/Speech (Music Only)'}</span>
+                                     <span className="text-[10px] text-slate-400 block">{language === 'ru' ? 'Исключить новостные, спортивные и разговорные станции' : 'Excludes news, sports, podcasts, and talk stations'}</span>
+                                 </div>
+                                 <button onClick={() => setAiSpeechFilter(!aiSpeechFilter)} className={`w-12 h-6 rounded-full relative transition-colors ${aiSpeechFilter ? 'bg-green-500' : 'bg-slate-700'}`}>
+                                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${aiSpeechFilter ? 'left-7' : 'left-1'}`}></div>
+                                 </button>
+                            </div>
+                        )}
                         
                         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
                             <span className="font-bold text-sm text-slate-200">{t.interfaceLanguage}</span>
